@@ -10,6 +10,7 @@ import {
   IsInt,
   IsEnum,
   Min,
+  Max,
 } from 'class-validator';
 import { AlicuotaIva } from 'src/modules/organizacion/enums/alicuota-iva.enum';
 import { IsGreaterThanOrEqualToProperty } from 'src/modules/common/validators/cross-field.validators';
@@ -103,6 +104,8 @@ export class CreateProductoDto {
 
   @IsOptional()
   @IsNumber()
+  @Min(0, { message: 'El porcentaje mínimo debe ser mayor o igual a 0.' })
+  @Max(999, { message: 'El porcentaje máximo permitido es de 999.' })
   porcentaje?: number;
 
   @IsOptional()
