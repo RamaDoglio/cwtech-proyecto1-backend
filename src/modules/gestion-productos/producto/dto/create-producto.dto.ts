@@ -11,6 +11,8 @@ import {
   IsEnum,
   Min,
   Max,
+  ValidateIf,
+  IsPositive,
 } from 'class-validator';
 import { AlicuotaIva } from 'src/modules/organizacion/enums/alicuota-iva.enum';
 import { IsGreaterThanOrEqualToProperty } from 'src/modules/common/validators/cross-field.validators';
@@ -53,8 +55,10 @@ export class CreateProductoDto {
   @IsBoolean()
   utilizaStockMinimo: boolean;
 
-  @IsOptional()
+  @ValidateIf((o) => o.utilizaStockMinimo === true)
+  @IsNotEmpty({ message: 'El stock mínimo es obligatorio.' })
   @IsInt()
+  @IsPositive({ message: 'El stock mínimo debe ser mayor a 0.' })
   stockMinimo?: number;
 
   @IsOptional()
@@ -84,8 +88,10 @@ export class CreateProductoDto {
   @IsBoolean()
   utilizaPack: boolean;
 
-  @IsOptional()
+  @ValidateIf((o) => o.utilizaPack === true)
+  @IsNotEmpty({ message: 'La cantidad por pack es obligatoria.' })
   @IsInt()
+  @IsPositive({ message: 'La cantidad por pack debe ser mayor a 0.' })
   cantidadPorPack?: number;
 
   @IsOptional()
