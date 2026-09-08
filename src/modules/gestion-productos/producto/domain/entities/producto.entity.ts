@@ -54,7 +54,9 @@ export class Producto {
   @PorcentajeColumn(21.0)
   alicuotaIva: AlicuotaIva;
 
-  // Stock: cantidades reales, admite fracciones (1.5 kg, 0.25 lts)
+  // Stock: columna decimal por flexibilidad de infraestructura, pero por
+  // decisión de negocio (PA-011) este stock siempre es entero, nunca
+  // fraccionario. El DTO lo valida con @IsInt() a propósito.
   @CantidadColumn()
   stock: number;
 

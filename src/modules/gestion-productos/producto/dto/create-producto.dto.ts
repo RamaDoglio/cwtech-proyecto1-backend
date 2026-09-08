@@ -61,6 +61,9 @@ export class CreateProductoDto {
   @IsPositive({ message: 'El stock mínimo debe ser mayor a 0.' })
   stockMinimo?: number;
 
+  // Decisión de negocio (PA-011): el stock de este negocio siempre es en
+  // unidades enteras, nunca fraccionario (aunque la columna en base de
+  // datos sea decimal). No cambiar a @IsNumber() sin volver a confirmarlo.
   @IsOptional()
   @IsInt()
   stock?: number;
