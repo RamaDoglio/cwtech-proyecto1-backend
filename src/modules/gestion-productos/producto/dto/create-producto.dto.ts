@@ -9,8 +9,10 @@ import {
   IsNumber,
   IsInt,
   IsEnum,
+  Min,
 } from 'class-validator';
 import { AlicuotaIva } from 'src/modules/organizacion/enums/alicuota-iva.enum';
+import { IsGreaterThanOrEqualToProperty } from 'src/modules/common/validators/cross-field.validators';
 
 export class CreateProductoDto {
   @Transform(({ value }) => value.trim().toLowerCase())
@@ -75,6 +77,7 @@ export class CreateProductoDto {
 
   @IsOptional()
   @IsNumber()
+  @Min(0, { message: 'El costo debe ser mayor o igual a 0.' })
   costo?: number;
 
   @IsBoolean()
@@ -104,6 +107,11 @@ export class CreateProductoDto {
 
   @IsOptional()
   @IsNumber()
+  @Min(0, { message: 'El precio debe ser mayor o igual a 0.' })
+  @IsGreaterThanOrEqualToProperty(
+    'costo',
+    'El precio debe ser mayor o igual que el costo.',
+  )
   precio: number;
 
   createdAt?: Date;
