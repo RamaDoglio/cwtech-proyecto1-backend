@@ -10,6 +10,7 @@ import {
   IsInt,
   Max,
   IsEmail,
+  ValidateNested,
 } from 'class-validator';
 import { CondicionIvaValidable } from 'src/modules/gutil/condicion-iva/domain/interfaces/condicion-iva-validable.inteface';
 import { CreateDomicilioDto } from 'src/modules/gutil/domicilio/dto/create-domicilio.dto';
@@ -57,6 +58,7 @@ export class CreateClienteDto implements CondicionIvaValidable {
   vendedorId: number;
 
   @IsNotEmpty({ message: 'El domicilio es obligatorio.' })
+  @ValidateNested()
   @Type(() => CreateDomicilioDto)
   domicilio: CreateDomicilioDto;
  

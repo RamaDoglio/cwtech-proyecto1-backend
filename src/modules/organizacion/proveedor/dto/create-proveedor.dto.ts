@@ -63,6 +63,7 @@ export class CreateProveedorDto implements CondicionIvaValidable {
   condicionIvaId: number;
 
   @IsNotEmpty({ message: 'El domicilio es obligatorio.' })
+  @ValidateNested()
   @Type(() => CreateDomicilioDto)
   domicilio: CreateDomicilioDto;
 
