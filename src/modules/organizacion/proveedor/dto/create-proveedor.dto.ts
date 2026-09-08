@@ -15,6 +15,7 @@ import {
 import { ReferenciaDto } from 'src/modules/common/dto/referencia.dto';
 import { CondicionIvaValidable } from 'src/modules/gutil/condicion-iva/domain/interfaces/condicion-iva-validable.inteface';
 import { CreateDomicilioDto } from 'src/modules/gutil/domicilio/dto/create-domicilio.dto';
+import { AtLeastOneTrue } from 'src/modules/common/validators/cross-field.validators';
 
 export class CreateProveedorDto implements CondicionIvaValidable {
   @IsString()
@@ -75,6 +76,10 @@ export class CreateProveedorDto implements CondicionIvaValidable {
   @IsNotEmpty({ message: 'El campo proveedor de gastos es obligatorio.' })
   @IsBoolean({ message: 'El campo proveedor gastos debe ser booleano.' })
   @Type(() => Boolean)
+  @AtLeastOneTrue(
+    ['esProveedorMateriaPrima', 'esProveedorGastos'],
+    'Debe seleccionar al menos un tipo de proveedor (Gastos o Materia Prima).',
+  )
   esProveedorGastos: boolean;
    
   @IsOptional()
