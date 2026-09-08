@@ -41,7 +41,7 @@ export class CreateClienteDto implements CondicionIvaValidable {
 
   @IsString()
   @IsOptional()
-  @MaxLength(255)
+  @MaxLength(11, { message: 'El CUIT no puede tener más de 11 caracteres.' })
   cuit?: string;
 
   @IsString()
