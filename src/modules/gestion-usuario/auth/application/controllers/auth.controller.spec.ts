@@ -2,13 +2,23 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { AuthController } from './auth.controller';
 import { AuthService } from '../services/auth.service';
 
+// ==================== MOCK DEL SERVICIO ====================
+const mockAuthService = {
+  registrarUsuario: jest.fn(),
+  login: jest.fn(),
+  loginConGoogle: jest.fn(),
+  enviarCodigoRecuperacion: jest.fn(),
+  verificarCodigo: jest.fn(),
+  cambiarContrasena: jest.fn(),
+};
+
 describe('AuthController', () => {
   let controller: AuthController;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [AuthController],
-      providers: [AuthService],
+      providers: [{ provide: AuthService, useValue: mockAuthService }],
     }).compile();
 
     controller = module.get<AuthController>(AuthController);
