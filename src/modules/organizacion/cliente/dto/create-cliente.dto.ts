@@ -10,6 +10,7 @@ import {
   IsInt,
   Max,
   IsEmail,
+  ValidateNested,
 } from 'class-validator';
 import { CondicionIvaValidable } from 'src/modules/gutil/condicion-iva/domain/interfaces/condicion-iva-validable.inteface';
 import { CreateDomicilioDto } from 'src/modules/gutil/domicilio/dto/create-domicilio.dto';
@@ -40,7 +41,7 @@ export class CreateClienteDto implements CondicionIvaValidable {
 
   @IsString()
   @IsOptional()
-  @MaxLength(255)
+  @MaxLength(11, { message: 'El CUIT no puede tener más de 11 caracteres.' })
   cuit?: string;
 
   @IsString()
@@ -57,6 +58,7 @@ export class CreateClienteDto implements CondicionIvaValidable {
   vendedorId: number;
 
   @IsNotEmpty({ message: 'El domicilio es obligatorio.' })
+  @ValidateNested()
   @Type(() => CreateDomicilioDto)
   domicilio: CreateDomicilioDto;
  

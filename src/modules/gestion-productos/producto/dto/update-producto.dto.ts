@@ -14,9 +14,8 @@ export class UpdateProductoDto extends PartialType(CreateProductoDto) {
   @IsString({ message: 'La denominación debe ser una cadena de texto.' }) // Valida que sea string
   @IsNotEmpty({ message: 'La denominación no puede estar vacía.' }) // Valida que no esté vacía
   @MaxLength(255, { message: 'La denominación no puede estar vacía.' })
-  @Matches(/^[A-Za-z0-9 áéíóúÁÉÍÓÚñÑ.\-/]+$/, {
-    message:
-      'La denominación solo puede contener letras, números, espacios, puntos, guiones y barras.',
+  @Matches(/^[\w áéíóúÁÉÍÓÚñÑ.\-/%]+$/, {
+    message: 'La denominación contiene caracteres inválidos ',
   })
   denominacion: string;
 
