@@ -12,7 +12,11 @@ import {
   Min,
 } from 'class-validator';
 import { AlicuotaIva } from 'src/modules/organizacion/enums/alicuota-iva.enum';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
+/**
+ * El precio de venta es derivado por el backend y no forma parte de este contrato.
+ */
 export class CreateProductoDto {
   @Transform(({ value }) => value.trim().toLowerCase())
   @IsString({ message: 'La denominación debe ser una cadena de texto.' }) // Valida que sea string
@@ -74,6 +78,10 @@ export class CreateProductoDto {
   @Transform(({ value }) => value === 'true' || value === true)
   envioGratis?: boolean;
 
+  @ApiProperty({
+    example: 100,
+    description: 'Costo de adquisición en moneda local. Es obligatorio.',
+  })
   @IsNotEmpty({ message: 'El costo es obligatorio.' })
   @IsNumber()
   @Min(0, { message: 'El costo debe ser un número no negativo.' })
@@ -82,6 +90,12 @@ export class CreateProductoDto {
   @IsBoolean()
   utilizaPack: boolean;
 
+  @ApiPropertyOptional({
+    example: 20,
+    description:
+      'Margen particular sobre el costo. Si se omite, se aplica el margen general del 15%.',
+    minimum: 0,
+  })
   @IsOptional()
   @IsInt()
   cantidadPorPack?: number;
