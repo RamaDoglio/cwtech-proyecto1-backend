@@ -1,18 +1,68 @@
+// mappers/producto.mapper.ts
 import { Logger } from '@nestjs/common';
 import { Producto } from '../domain/entities/producto.entity';
 import { GetProductoDto } from '../dto/get-producto.dto';
+import { CreateProductoDto } from '../dto/create-producto.dto';
+import { UpdateProductoDto } from '../dto/update-producto.dto';
 import { UpdatePrecioDto } from '../dto/update-precio.dto';
 import { Usuario } from 'src/modules/gestion-usuario/usuario/domain/entities/usuario.entity';
 import { ProductoDto } from '../dto/producto.dto';
+import { Linea } from '../../linea/domain/entities/linea.entity';
+import { Marca } from '../../marca/domain/entities/marca.entity';
+import { toReferenciaDto } from 'src/modules/common/utils/mappers/referencia.mapper';
 import { ProductoConPrecioResuelto } from '../domain/interfaces/producto-con-precio-resuelto.interface';
 
-import {
-  toReferenciaDto,
-} from 'src/modules/common/utils/mappers/referencia.mapper';
-
 export class ProductoMapper {
- 
   private static readonly logger = new Logger(ProductoMapper.name);
+
+  // ============================================================
+  // NUEVOS: DTO → Entidad
+  // ============================================================
+
+  static toEntityFromCreateDto(
+    dto: CreateProductoDto,
+    linea: Linea,
+    marca: Marca,
+    usuario: Usuario,
+  ): Producto {
+    const producto = new Producto();
+
+    // Solo copia campos definidos del DTO
+    Object.entries(dto).forEach(([key, value]) => {
+      if (value !== undefined) {
+        (producto as any)[key] = value;
+      }
+    });
+
+    producto.linea = linea;
+    producto.marca = marca;
+    producto.usuarioCreated = usuario;
+    producto.movimientos = [];
+
+    return producto;
+  }
+
+  static applyUpdate(
+    producto: Producto,
+    dto: UpdateProductoDto,
+    linea: Linea,
+    marca: Marca,
+    usuario: Usuario,
+  ): void {
+    Object.entries(dto).forEach(([key, value]) => {
+      if (value !== undefined) {
+        (producto as any)[key] = value;
+      }
+    });
+
+    producto.linea = linea;
+    producto.marca = marca;
+    producto.usuarioUpdated = usuario;
+  }
+
+  // ============================================================
+  // EXISTENTES: Entidad → DTOs (sin cambios)
+  // ============================================================
 
   static toBusquedaDto(entity: Producto): GetProductoDto {
     const precio = entity.precio ?? 0;
@@ -24,30 +74,22 @@ export class ProductoMapper {
       observacion: entity.observacion ?? '',
       codigoProveedorDenominacion:
         entity.codigoProveedor + ' - ' + entity.denominacion,
-
       codigoProveedor: entity.codigoProveedor ?? '',
-
       proveedor: '',
       stock: entity.stock,
       alicuota: alicuota,
       costo: entity.costo ?? 0,
-
-
       precio: precio,
       precioConIva: +(precio * (1 + alicuota / 100)).toFixed(2),
       ubicacion: entity.ubicacion ?? '',
-
       utilizaStockMinimo: entity.utilizaStockMinimo,
-
       stockMinimo: entity.stockMinimo,
       utilizaPack: entity.utilizaPack,
       cantidadPorPack: entity.cantidadPorPack ?? 0,
       sistema: entity.sistema,
       codigoReferencia: entity.codigoReferencia ?? '',
-
     };
   }
-
 
   static mapPrecios(
     entity: Producto,
@@ -57,18 +99,12 @@ export class ProductoMapper {
     entity.costo = dto.costo;
     entity.costoDolar = dto.costoDolar;
     entity.cotizacionDolar = dto.cotizacionDolar;
-    entity.porcentaje = dto.margen;
-    entity.precio = dto.precio;
-
     entity.fechaCostoDolar = new Date();
     entity.fechaCosto = new Date();
-
     entity.usuarioUpdated = usuario;
   }
 
-
   static toDto(entity: Producto): ProductoDto {
-   
     const alicuota = entity.alicuotaIva ?? 0;
     const precio = entity.precio ?? 0;
 
@@ -86,9 +122,7 @@ export class ProductoMapper {
       costoDolar: entity.costoDolar ?? 0,
       cotizacionDolar: entity.cotizacionDolar ?? 0,
       precioDolar: entity.precioDolar ?? 0,
-
       destacado: entity.destacado ?? false,
-
       envioGratis: entity.envioGratis ?? false,
       linea: toReferenciaDto(entity.linea),
       marca: toReferenciaDto(entity.marca),
@@ -100,12 +134,6 @@ export class ProductoMapper {
       cantidadPorPack: entity.cantidadPorPack ?? 0,
       sistema: entity.sistema,
       codigoReferencia: entity.codigoReferencia ?? '',
-
-    
-      
     };
   }
-
-
-   
 }

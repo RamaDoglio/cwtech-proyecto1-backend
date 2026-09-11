@@ -1,12 +1,15 @@
-import { 
-  ExceptionFilter, 
-  Catch, 
-  ArgumentsHost, 
-  HttpException, 
+import {
+  ExceptionFilter,
+  Catch,
+  ArgumentsHost,
+  HttpException,
   HttpStatus,
-  Logger 
+  Logger,
 } from '@nestjs/common';
 import { Request, Response } from 'express';
+import { StockNegativoException } from '../exceptions/stock-negativo.exception';
+import { MotivoRequeridoException } from '../exceptions/motivo-requerido.exception';
+import { CantidadInvalidaException } from '../exceptions/cantidad-invalida.exception';
 
 @Catch()
 export class GlobalExceptionFilter implements ExceptionFilter {
@@ -17,10 +20,10 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     const response = ctx.getResponse<Response>();
     const request = ctx.getRequest<Request>();
 
-    const status =
-      exception instanceof HttpException
-        ? exception.getStatus()
-        : HttpStatus.INTERNAL_SERVER_ERROR;
+    // ============================================================
+    // Resolver status HTTP según el tipo de excepción
+    // ============================================================
+    const status = this.resolveStatus(exception);
 
     // 🔥 LOGS SUPER DETALLADOS 🔥
     this.logger.error('═══════════════════════════════════════════════════════');
@@ -31,11 +34,12 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     this.logger.error(`📍 Status Code: ${status}`);
     this.logger.error(`📍 Timestamp: ${new Date().toISOString()}`);
     this.logger.error('───────────────────────────────────────────────────────');
-    this.logger.error(`🔴 Tipo de Excepción: ${exception?.constructor?.name || 'Unknown'}`);
+    this.logger.error(
+      `🔴 Tipo de Excepción: ${exception?.constructor?.name || 'Unknown'}`,
+    );
     this.logger.error(`🔴 Mensaje: ${exception?.message || 'Sin mensaje'}`);
     this.logger.error('───────────────────────────────────────────────────────');
-    
-    // Stack trace completo
+
     if (exception?.stack) {
       this.logger.error('📚 STACK TRACE COMPLETO:');
       this.logger.error(exception.stack);
@@ -43,13 +47,12 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     } else {
       this.logger.error('⚠️ No hay stack trace disponible');
     }
-    
-    // Detalles completos del error
+
     try {
       const errorDetails = JSON.stringify(
-        exception, 
-        Object.getOwnPropertyNames(exception), 
-        2
+        exception,
+        Object.getOwnPropertyNames(exception),
+        2,
       );
       this.logger.error('📋 DETALLES COMPLETOS DEL ERROR:');
       this.logger.error(errorDetails);
@@ -57,8 +60,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     } catch (e) {
       this.logger.error('⚠️ No se pudo serializar la excepción completa');
     }
-    
-    // Response del error (para HttpExceptions)
+
     if (exception?.response) {
       this.logger.error('📨 RESPONSE DEL ERROR:');
       try {
@@ -69,28 +71,54 @@ export class GlobalExceptionFilter implements ExceptionFilter {
       this.logger.error('───────────────────────────────────────────────────────');
     }
 
-    // Información adicional si es HttpException
     if (exception instanceof HttpException) {
       const exceptionResponse = exception.getResponse();
       this.logger.error('🔍 HTTP EXCEPTION RESPONSE:');
       this.logger.error(JSON.stringify(exceptionResponse, null, 2));
       this.logger.error('───────────────────────────────────────────────────────');
     }
-    
+
     this.logger.error('═══════════════════════════════════════════════════════');
 
+    // ============================================================
     // Respuesta al cliente
+    // ============================================================
     const errorResponse = {
       statusCode: status,
       timestamp: new Date().toISOString(),
       path: request.url,
+      error: exception?.constructor?.name || 'InternalServerError',
       message: exception?.message || 'Internal Server Error',
-      ...(process.env.NODE_ENV === 'development' && { 
+      ...(process.env.NODE_ENV === 'development' && {
         stack: exception?.stack,
-        details: exception?.response 
-      })
+        details: exception?.response,
+      }),
     };
 
     response.status(status).json(errorResponse);
+  }
+
+  // ============================================================
+  // Mapeo de excepción → HTTP status
+  // ============================================================
+  private resolveStatus(exception: any): number {
+    // 1. HttpException → su propio status
+    if (exception instanceof HttpException) {
+      return exception.getStatus();
+    }
+
+    // 2. Excepciones de dominio → HTTP semántico
+    if (exception instanceof StockNegativoException) {
+      return HttpStatus.CONFLICT; // 409
+    }
+    if (exception instanceof MotivoRequeridoException) {
+      return HttpStatus.BAD_REQUEST; // 400
+    }
+    if (exception instanceof CantidadInvalidaException) {
+      return HttpStatus.BAD_REQUEST; // 400
+    }
+
+    // 3. Fallback → 500
+    return HttpStatus.INTERNAL_SERVER_ERROR;
   }
 }
