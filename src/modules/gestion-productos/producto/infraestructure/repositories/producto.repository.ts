@@ -10,6 +10,7 @@ import { DatabaseConnectionException } from 'src/modules/common/exceptions/datab
 import { IUnitOfWork } from 'src/modules/common/unit-of-work/iunit-of-work.';
 import { Usuario } from 'src/modules/gestion-usuario/usuario/domain/entities/usuario.entity';
 import { UpdatePrecioDto } from '../../dto/update-precio.dto';
+import { ProductoConPrecioResuelto } from '../../domain/interfaces/producto-con-precio-resuelto.interface';
 
 @Injectable()
 export class ProductoRepository implements IProductoRepository {
@@ -26,7 +27,7 @@ export class ProductoRepository implements IProductoRepository {
   private readonly ENTITY_NAME = 'Producto';
 
   async create(
-    data: CreateProductoDto,
+    data: CreateProductoDto & ProductoConPrecioResuelto,
     linea: Linea,
     marca: Marca,
     usuario: Usuario,
@@ -49,7 +50,7 @@ export class ProductoRepository implements IProductoRepository {
 
   async update(
     id: number,
-    data: UpdateProductoDto,
+    data: UpdateProductoDto & ProductoConPrecioResuelto,
     linea: Linea,
     marca: Marca,
 
@@ -132,7 +133,11 @@ export class ProductoRepository implements IProductoRepository {
     );
   }
 
-  async actualizarPrecio(id: number, dto: UpdatePrecioDto, usuario: Usuario) {
+  async actualizarPrecio(
+    id: number,
+    dto: UpdatePrecioDto & ProductoConPrecioResuelto,
+    usuario: Usuario,
+  ) {
     return this.persistenceService.actualizarPrecio(id, dto, usuario);
   }
 

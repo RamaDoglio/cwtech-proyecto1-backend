@@ -4,6 +4,7 @@ import { GetProductoDto } from '../dto/get-producto.dto';
 import { UpdatePrecioDto } from '../dto/update-precio.dto';
 import { Usuario } from 'src/modules/gestion-usuario/usuario/domain/entities/usuario.entity';
 import { ProductoDto } from '../dto/producto.dto';
+import { ProductoConPrecioResuelto } from '../domain/interfaces/producto-con-precio-resuelto.interface';
 
 import {
   toReferenciaDto,
@@ -50,12 +51,14 @@ export class ProductoMapper {
 
   static mapPrecios(
     entity: Producto,
-    dto: UpdatePrecioDto,
+    dto: UpdatePrecioDto & ProductoConPrecioResuelto,
     usuario: Usuario,
   ): void {
     entity.costo = dto.costo;
     entity.costoDolar = dto.costoDolar;
     entity.cotizacionDolar = dto.cotizacionDolar;
+    entity.porcentaje = dto.margen;
+    entity.precio = dto.precio;
 
     entity.fechaCostoDolar = new Date();
     entity.fechaCosto = new Date();
@@ -78,7 +81,7 @@ export class ProductoMapper {
       stock: entity.stock ?? 0,
       costo: entity.costo ?? 0,
       precio: entity.precio ?? 0,
-      porcentaje: entity.porcentaje ?? 0,
+      margen: entity.porcentaje ?? 15,
       costoEnDolar: entity.costoEnDolar ?? false,
       costoDolar: entity.costoDolar ?? 0,
       cotizacionDolar: entity.cotizacionDolar ?? 0,

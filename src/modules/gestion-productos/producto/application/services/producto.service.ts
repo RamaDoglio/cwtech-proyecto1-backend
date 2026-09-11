@@ -10,6 +10,7 @@ import { IUnitOfWork } from 'src/modules/common/unit-of-work/iunit-of-work.';
 import { ProveedorService } from 'src/modules/organizacion/proveedor/application/services/proveedor.service';
 import { PaginacionUtils } from 'src/modules/common/utils/pagination/paginacion-utils';
 import { UsuarioService } from 'src/modules/gestion-usuario/usuario/application/services/usuario.service';
+import { Usuario } from 'src/modules/gestion-usuario/usuario/domain/entities/usuario.entity';
 import { ensureNotSistemaEntity } from 'src/modules/common/utils/atrituto-sistema';
 import { AuditoriaMapper } from 'src/modules/gestion-sistema/auditoria/mappers/auditoria.mapper';
 import { MessageFrontUtils } from 'src/modules/common/utils/message/message-front.util';
@@ -27,6 +28,9 @@ import { ProductoRelatedEntitiesValidator } from '../../infraestructure/validato
 import { ProductoUniquenessValidator } from '../../infraestructure/validators/producto-uniqueness.validator.ts';
 import { UsuarioValidator } from 'src/modules/common/utils/validation/usuario-validator';
 import { ProductoDeletePolicy } from '../policies/producto-delete.policy';
+import { PoliticaPrecio } from '../../domain/services/politica-precio.service';
+import { ProductoConPrecioResuelto } from '../../domain/interfaces/producto-con-precio-resuelto.interface';
+import { UpdatePrecioDto } from '../../dto/update-precio.dto';
 @Injectable()
 export class ProductoService {
   private readonly logger = new Logger(ProductoService.name);
@@ -64,10 +68,10 @@ export class ProductoService {
     const { marca, linea, usuario } =
       await this.validarYPrepararCreacion(dto);
 
-
+    const productoConPrecio = this.resolverPrecio(dto, dto.costo, dto.margen);
 
     const entity = await this.repository.create(
-      dto,
+      productoConPrecio,
       linea,
       marca,
 
@@ -84,12 +88,22 @@ export class ProductoService {
   async update(id: number, dto: UpdateProductoDto) {
     this.logger.log(`Actualizandox  ${this.ENTITY_NAME} con ID: ${id}`);
 
-    const { marca, linea, usuario } =
+    const { marca, linea, usuario, productoActual } =
       await this.validarYPrepararActualizacion(id, dto);
+
+    const costo = dto.costo ?? productoActual.costo;
+    if (costo == null) {
+      throw new InternalServerErrorException('Producto en estado inválido: falta costo.');
+    }
+    const productoConPrecio = this.resolverPrecio(
+      dto,
+      costo,
+      dto.margen ?? productoActual.porcentaje,
+    );
 
     const entity = await this.repository.update(
       id,
-      dto,
+      productoConPrecio,
       linea,
       marca,
 
@@ -100,6 +114,18 @@ export class ProductoService {
       `${this.ENTITY_NAME}`,
       entity.denominacion,
       'editada',
+    );
+  }
+
+  async actualizarPrecio(
+    id: number,
+    dto: UpdatePrecioDto,
+    usuario: Usuario,
+  ): Promise<void> {
+    await this.repository.actualizarPrecio(
+      id,
+      this.resolverPrecio(dto, dto.costo, dto.margen),
+      usuario,
     );
   }
 
@@ -354,6 +380,21 @@ export class ProductoService {
 
     return { marca, linea, usuario };
   }
+
+  private resolverPrecio<T extends { costo?: number; margen?: number }>(
+    dto: T,
+    costo: number,
+    margen?: number,
+  ): T & ProductoConPrecioResuelto {
+    const margenResuelto = PoliticaPrecio.resolverMargen(margen);
+
+    return {
+      ...dto,
+      costo,
+      margen: margenResuelto,
+      precio: PoliticaPrecio.calcular(costo, margenResuelto),
+    };
+  }
   /**
    * Orquesta todas las validaciones necesarias para actualizar un producto
    * @private
@@ -413,7 +454,7 @@ export class ProductoService {
       dto.usuarioUpdatedId,
     );
 
-    return { marca, linea, usuario };
+    return { marca, linea, usuario, productoActual };
   }
 
 

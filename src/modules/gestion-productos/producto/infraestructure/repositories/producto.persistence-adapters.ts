@@ -14,6 +14,7 @@ import { CreateProductoDto } from '../../dto/create-producto.dto';
 import { UpdatePrecioDto } from '../../dto/update-precio.dto';
 import { UpdateProductoDto } from '../../dto/update-producto.dto';
 import { ProductoMapper } from '../../mappers/producto.mapper';
+import { ProductoConPrecioResuelto } from '../../domain/interfaces/producto-con-precio-resuelto.interface';
 
 
 @Injectable()
@@ -32,7 +33,7 @@ export class ProductoPersistenceAdapter implements IProductoRepository {
 
   @Transactional()
   async create(
-    data: CreateProductoDto,
+    data: CreateProductoDto & ProductoConPrecioResuelto,
     linea: Linea,
     marca: Marca,
     usuario: Usuario,
@@ -48,8 +49,10 @@ export class ProductoPersistenceAdapter implements IProductoRepository {
       this.logger.debug('Marca:', marca);
       this.logger.debug('Usuario:', usuario);
 
+      const { margen, ...datosProducto } = data;
       const nuevaEntity = repo.create({
-        ...data,
+        ...datosProducto,
+        porcentaje: margen,
         linea,
         marca,
         usuarioCreated: usuario,
@@ -157,7 +160,7 @@ export class ProductoPersistenceAdapter implements IProductoRepository {
   @Transactional()
   async update(
     id: number,
-    data: UpdateProductoDto,
+    data: UpdateProductoDto & ProductoConPrecioResuelto,
     linea: Linea,
     marca: Marca,
 
@@ -170,14 +173,12 @@ export class ProductoPersistenceAdapter implements IProductoRepository {
       if (!entity) {
         throw new NotFoundException(`EL prodcuto con ID ${id} no encontrada`);
       }
-      const {
-
-        ...dataSinItems
-      } = data;
+      const { margen, ...dataSinItems } = data;
 
       Object.assign(entity, dataSinItems, {
         linea,
         marca,
+        porcentaje: margen,
       });
 
       entity.usuarioUpdated = usuario; 
@@ -370,7 +371,11 @@ export class ProductoPersistenceAdapter implements IProductoRepository {
   }
 
   @Transactional()
-  async actualizarPrecio(id: number, dto: UpdatePrecioDto, usuario: Usuario) {
+  async actualizarPrecio(
+    id: number,
+    dto: UpdatePrecioDto & ProductoConPrecioResuelto,
+    usuario: Usuario,
+  ) {
     const repo = this.uow.getRepository(Producto);
     const entity = await repo.findOne({ where: { id } });
 
@@ -511,4 +516,3 @@ export class ProductoPersistenceAdapter implements IProductoRepository {
   }
 
 }
-
