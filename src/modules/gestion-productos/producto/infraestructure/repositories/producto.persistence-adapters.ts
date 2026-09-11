@@ -14,6 +14,7 @@ import { CreateProductoDto } from '../../dto/create-producto.dto';
 import { UpdatePrecioDto } from '../../dto/update-precio.dto';
 import { UpdateProductoDto } from '../../dto/update-producto.dto';
 import { ProductoMapper } from '../../mappers/producto.mapper';
+import { PoliticaPrecio } from '../../domain/services/politica-precio.service';
 
 
 @Injectable()
@@ -48,8 +49,12 @@ export class ProductoPersistenceAdapter implements IProductoRepository {
       this.logger.debug('Marca:', marca);
       this.logger.debug('Usuario:', usuario);
 
+      const { margen, ...datosProducto } = data;
+      const margenAplicado = PoliticaPrecio.resolverMargen(margen);
       const nuevaEntity = repo.create({
-        ...data,
+        ...datosProducto,
+        porcentaje: margenAplicado,
+        precio: PoliticaPrecio.calcular(datosProducto.costo ?? 0, margenAplicado),
         linea,
         marca,
         usuarioCreated: usuario,
@@ -170,14 +175,17 @@ export class ProductoPersistenceAdapter implements IProductoRepository {
       if (!entity) {
         throw new NotFoundException(`EL prodcuto con ID ${id} no encontrada`);
       }
-      const {
-
-        ...dataSinItems
-      } = data;
+      const { margen, ...dataSinItems } = data;
+      const costo = dataSinItems.costo ?? entity.costo ?? 0;
+      const margenAplicado = PoliticaPrecio.resolverMargen(
+        margen ?? entity.porcentaje,
+      );
 
       Object.assign(entity, dataSinItems, {
         linea,
         marca,
+        porcentaje: margenAplicado,
+        precio: PoliticaPrecio.calcular(costo, margenAplicado),
       });
 
       entity.usuarioUpdated = usuario; 
@@ -511,4 +519,3 @@ export class ProductoPersistenceAdapter implements IProductoRepository {
   }
 
 }
-
