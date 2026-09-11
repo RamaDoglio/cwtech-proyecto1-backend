@@ -74,10 +74,10 @@ export class CreateProductoDto {
   @Transform(({ value }) => value === 'true' || value === true)
   envioGratis?: boolean;
 
-  @IsOptional()
+  @IsNotEmpty({ message: 'El costo es obligatorio.' })
   @IsNumber()
   @Min(0, { message: 'El costo debe ser un número no negativo.' })
-  costo?: number;
+  costo: number;
 
   @IsBoolean()
   utilizaPack: boolean;

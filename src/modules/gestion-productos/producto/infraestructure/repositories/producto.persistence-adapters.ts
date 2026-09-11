@@ -14,7 +14,7 @@ import { CreateProductoDto } from '../../dto/create-producto.dto';
 import { UpdatePrecioDto } from '../../dto/update-precio.dto';
 import { UpdateProductoDto } from '../../dto/update-producto.dto';
 import { ProductoMapper } from '../../mappers/producto.mapper';
-import { PoliticaPrecio } from '../../domain/services/politica-precio.service';
+import { ProductoConPrecioResuelto } from '../../domain/interfaces/producto-con-precio-resuelto.interface';
 
 
 @Injectable()
@@ -33,7 +33,7 @@ export class ProductoPersistenceAdapter implements IProductoRepository {
 
   @Transactional()
   async create(
-    data: CreateProductoDto,
+    data: CreateProductoDto & ProductoConPrecioResuelto,
     linea: Linea,
     marca: Marca,
     usuario: Usuario,
@@ -50,11 +50,9 @@ export class ProductoPersistenceAdapter implements IProductoRepository {
       this.logger.debug('Usuario:', usuario);
 
       const { margen, ...datosProducto } = data;
-      const margenAplicado = PoliticaPrecio.resolverMargen(margen);
       const nuevaEntity = repo.create({
         ...datosProducto,
-        porcentaje: margenAplicado,
-        precio: PoliticaPrecio.calcular(datosProducto.costo ?? 0, margenAplicado),
+        porcentaje: margen,
         linea,
         marca,
         usuarioCreated: usuario,
@@ -162,7 +160,7 @@ export class ProductoPersistenceAdapter implements IProductoRepository {
   @Transactional()
   async update(
     id: number,
-    data: UpdateProductoDto,
+    data: UpdateProductoDto & ProductoConPrecioResuelto,
     linea: Linea,
     marca: Marca,
 
@@ -176,16 +174,11 @@ export class ProductoPersistenceAdapter implements IProductoRepository {
         throw new NotFoundException(`EL prodcuto con ID ${id} no encontrada`);
       }
       const { margen, ...dataSinItems } = data;
-      const costo = dataSinItems.costo ?? entity.costo ?? 0;
-      const margenAplicado = PoliticaPrecio.resolverMargen(
-        margen ?? entity.porcentaje,
-      );
 
       Object.assign(entity, dataSinItems, {
         linea,
         marca,
-        porcentaje: margenAplicado,
-        precio: PoliticaPrecio.calcular(costo, margenAplicado),
+        porcentaje: margen,
       });
 
       entity.usuarioUpdated = usuario; 
@@ -378,7 +371,11 @@ export class ProductoPersistenceAdapter implements IProductoRepository {
   }
 
   @Transactional()
-  async actualizarPrecio(id: number, dto: UpdatePrecioDto, usuario: Usuario) {
+  async actualizarPrecio(
+    id: number,
+    dto: UpdatePrecioDto & ProductoConPrecioResuelto,
+    usuario: Usuario,
+  ) {
     const repo = this.uow.getRepository(Producto);
     const entity = await repo.findOne({ where: { id } });
 

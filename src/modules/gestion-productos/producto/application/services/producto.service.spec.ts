@@ -11,6 +11,7 @@ import { ProductoRelatedEntitiesValidator } from '../../infraestructure/validato
 import { ProductoUniquenessValidator } from '../../infraestructure/validators/producto-uniqueness.validator.ts';
 import { UsuarioValidator } from '../../../../common/utils/validation/usuario-validator';
 import { ProductoDeletePolicy } from '../policies/producto-delete.policy';
+import { CreateProductoDto } from '../../dto/create-producto.dto';
 
 // ==================== MOCKS ====================
 // Cada dependencia debe tener al menos los métodos que el servicio invoca.
@@ -94,5 +95,32 @@ describe('ProductoService', () => {
 
   it('should be defined', () => {
     expect(service).toBeDefined();
+  });
+
+  it('resuelve costo, margen y precio antes de crear el producto', async () => {
+    mockRelatedEntitiesValidator.validarYObtenerEntidadesRelacionadas.mockResolvedValue({
+      marca: { id: 1 },
+      linea: { id: 1 },
+    });
+    mockUsuarioValidator.validarUsuarioExiste.mockResolvedValue({ id: 1 });
+    mockRepository.create.mockResolvedValue({ denominacion: 'producto' });
+
+    await service.create({
+      denominacion: 'producto',
+      costo: 100,
+      utilizaStockMinimo: false,
+      utilizaPack: false,
+      lineaId: 1,
+      marcaId: 1,
+      alicuotaIva: 21,
+      usuarioCreatedId: 1,
+    } as CreateProductoDto);
+
+    expect(mockRepository.create).toHaveBeenCalledWith(
+      expect.objectContaining({ costo: 100, margen: 15, precio: 115 }),
+      { id: 1 },
+      { id: 1 },
+      { id: 1 },
+    );
   });
 });
