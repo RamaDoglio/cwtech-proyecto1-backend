@@ -11,6 +11,7 @@ import { Linea } from '../../linea/domain/entities/linea.entity';
 import { Marca } from '../../marca/domain/entities/marca.entity';
 import { toReferenciaDto } from 'src/modules/common/utils/mappers/referencia.mapper';
 import { ProductoConPrecioResuelto } from '../domain/interfaces/producto-con-precio-resuelto.interface';
+import { PoliticaPrecio } from '../domain/services/politica-precio.service';
 
 export class ProductoMapper {
   private static readonly logger = new Logger(ProductoMapper.name);
@@ -27,12 +28,17 @@ export class ProductoMapper {
   ): Producto {
     const producto = new Producto();
 
-    // Solo copia campos definidos del DTO
-    Object.entries(dto).forEach(([key, value]) => {
+    const { margen, ...camposProducto } = dto;
+
+    // margen es parte del contrato HTTP, pero se persiste en la columna historica porcentaje.
+    Object.entries(camposProducto).forEach(([key, value]) => {
       if (value !== undefined) {
         (producto as any)[key] = value;
       }
     });
+
+    producto.porcentaje = PoliticaPrecio.resolverMargen(margen);
+    producto.precio = PoliticaPrecio.calcular(producto.costo ?? 0, margen);
 
     producto.linea = linea;
     producto.marca = marca;
@@ -49,11 +55,17 @@ export class ProductoMapper {
     marca: Marca,
     usuario: Usuario,
   ): void {
-    Object.entries(dto).forEach(([key, value]) => {
+    const { margen, ...camposProducto } = dto;
+
+    Object.entries(camposProducto).forEach(([key, value]) => {
       if (value !== undefined) {
         (producto as any)[key] = value;
       }
     });
+
+    const margenResuelto = PoliticaPrecio.resolverMargen(margen ?? producto.porcentaje);
+    producto.porcentaje = margenResuelto;
+    producto.precio = PoliticaPrecio.calcular(producto.costo ?? 0, margenResuelto);
 
     producto.linea = linea;
     producto.marca = marca;
