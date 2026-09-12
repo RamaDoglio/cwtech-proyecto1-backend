@@ -12,6 +12,7 @@ import { ProductoUniquenessValidator } from '../../infraestructure/validators/pr
 import { UsuarioValidator } from '../../../../common/utils/validation/usuario-validator';
 import { ProductoDeletePolicy } from '../policies/producto-delete.policy';
 import { CreateProductoDto } from '../../dto/create-producto.dto';
+import { UpdateProductoDto } from '../../dto/update-producto.dto';
 
 // ==================== MOCKS ====================
 // Cada dependencia debe tener al menos los métodos que el servicio invoca.
@@ -19,6 +20,7 @@ import { CreateProductoDto } from '../../dto/create-producto.dto';
 const mockRepository = {
   create: jest.fn(),
   update: jest.fn(),
+  save: jest.fn(),
   findOne: jest.fn(),
   findByRapido: jest.fn(),
   findBy: jest.fn(),
@@ -103,7 +105,7 @@ describe('ProductoService', () => {
       linea: { id: 1 },
     });
     mockUsuarioValidator.validarUsuarioExiste.mockResolvedValue({ id: 1 });
-    mockRepository.create.mockResolvedValue({ denominacion: 'producto' });
+    mockRepository.save.mockImplementation(async (producto) => producto);
 
     await service.create({
       denominacion: 'producto',
@@ -116,11 +118,37 @@ describe('ProductoService', () => {
       usuarioCreatedId: 1,
     } as CreateProductoDto);
 
-    expect(mockRepository.create).toHaveBeenCalledWith(
-      expect.objectContaining({ costo: 100, margen: 15, precio: 115 }),
-      { id: 1 },
-      { id: 1 },
-      { id: 1 },
+    expect(mockRepository.save).toHaveBeenCalledWith(
+      expect.objectContaining({ costo: 100, porcentaje: 15, precio: 115 }),
+    );
+  });
+
+  it('recalcula el precio al actualizar el costo o el margen', async () => {
+    mockRepository.findOne.mockResolvedValue({
+      id: 1,
+      denominacion: 'producto',
+      costo: 100,
+      porcentaje: 15,
+      lineaId: 1,
+      marcaId: 1,
+      alicuotaIva: 21,
+    });
+    mockRelatedEntitiesValidator.validarYObtenerEntidadesRelacionadas.mockResolvedValue({
+      marca: { id: 1 },
+      linea: { id: 1 },
+    });
+    mockUsuarioValidator.validarUsuarioExiste.mockResolvedValue({ id: 1 });
+    mockRepository.save.mockImplementation(async (producto) => producto);
+
+    await service.update(1, {
+      denominacion: 'producto',
+      costo: 200,
+      margen: 0,
+      usuarioUpdatedId: 1,
+    } as UpdateProductoDto);
+
+    expect(mockRepository.save).toHaveBeenCalledWith(
+      expect.objectContaining({ costo: 200, porcentaje: 0, precio: 200 }),
     );
   });
 });
