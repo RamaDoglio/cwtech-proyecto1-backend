@@ -6,10 +6,10 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
-import { IUnitOfWork } from 'src/modules/common/unit-of-work/iunit-of-work.';
 import { ProveedorService } from 'src/modules/organizacion/proveedor/application/services/proveedor.service';
 import { PaginacionUtils } from 'src/modules/common/utils/pagination/paginacion-utils';
 import { UsuarioService } from 'src/modules/gestion-usuario/usuario/application/services/usuario.service';
+import { Usuario } from 'src/modules/gestion-usuario/usuario/domain/entities/usuario.entity';
 import { ensureNotSistemaEntity } from 'src/modules/common/utils/atrituto-sistema';
 import { AuditoriaMapper } from 'src/modules/gestion-sistema/auditoria/mappers/auditoria.mapper';
 import { MessageFrontUtils } from 'src/modules/common/utils/message/message-front.util';
@@ -18,6 +18,7 @@ import { IProductoRepository } from '../../domain/interfaces/producto.repository
 import { CreateProductoDto } from '../../dto/create-producto.dto';
 import { GetProductoDto } from '../../dto/get-producto.dto';
 import { UpdateProductoDto } from '../../dto/update-producto.dto';
+import { AjustarStockManualDto } from '../../dto/ajustar-stock-manual.dto';
 import { ProductoMapper } from '../../mappers/producto.mapper';
 import { LineaService } from 'src/modules/gestion-productos/linea/application/services/linea.service';
 import { MarcaService } from 'src/modules/gestion-productos/marca/application/services/marca.service';
@@ -27,9 +28,13 @@ import { ProductoRelatedEntitiesValidator } from '../../infraestructure/validato
 import { ProductoUniquenessValidator } from '../../infraestructure/validators/producto-uniqueness.validator.ts';
 import { UsuarioValidator } from 'src/modules/common/utils/validation/usuario-validator';
 import { ProductoDeletePolicy } from '../policies/producto-delete.policy';
+import { TipoMovimientoStock } from '../../domain/entities/movimiento-stock.entity';
+
 @Injectable()
 export class ProductoService {
   private readonly logger = new Logger(ProductoService.name);
+  private readonly ENTITY_NAME = 'Producto';
+
   constructor(
     @Inject('IProductoRepository')
     private readonly repository: IProductoRepository,
@@ -40,7 +45,7 @@ export class ProductoService {
     private readonly proveedorService: ProveedorService,
     private readonly usuarioService: UsuarioService,
 
-    //  Domain Services
+    // Domain Services
     private readonly intrinsicValidationService: ProductoIntrinsicValidationService,
     private readonly validationService: ProductoValidationService,
 
@@ -50,66 +55,162 @@ export class ProductoService {
     private readonly usuarioValidator: UsuarioValidator,
 
     private readonly productoDeletePolicy: ProductoDeletePolicy,
+  ) {}
 
-  ) { }
-
-  private readonly ENTITY_NAME = 'Producto';
-
+  // ============================================================
+  // CREATE
+  // ============================================================
   async create(dto: CreateProductoDto) {
     this.logger.log(
-      `Creando un nuevo ${this.ENTITY_NAME} con denominación: ${dto.denominacion} a: ${dto.denominacion}`,
+      `Creando un nuevo ${this.ENTITY_NAME} con denominación: ${dto.denominacion}`,
     );
 
-    // Orquestar todas las validaciones
-    const { marca, linea, usuario } =
-      await this.validarYPrepararCreacion(dto);
+    const { marca, linea, usuario } = await this.validarYPrepararCreacion(dto);
 
-
-
-    const entity = await this.repository.create(
+    const producto = ProductoMapper.toEntityFromCreateDto(
       dto,
       linea,
       marca,
-
       usuario,
     );
 
+    const entity = await this.repository.save(producto);
+
     return MessageFrontUtils.createSimple(
-      `${this.ENTITY_NAME}`,
+      this.ENTITY_NAME,
       entity.denominacion,
       'creada',
     );
   }
 
+  // ============================================================
+  // UPDATE
+  // ============================================================
   async update(id: number, dto: UpdateProductoDto) {
-    this.logger.log(`Actualizandox  ${this.ENTITY_NAME} con ID: ${id}`);
+    this.logger.log(`Actualizando ${this.ENTITY_NAME} con ID: ${id}`);
 
-    const { marca, linea, usuario } =
+    const { marca, linea, usuario, productoActual } =
       await this.validarYPrepararActualizacion(id, dto);
 
-    const entity = await this.repository.update(
-      id,
-      dto,
-      linea,
-      marca,
+    ProductoMapper.applyUpdate(productoActual, dto, linea, marca, usuario);
 
-      usuario,
-    );
+    const entity = await this.repository.save(productoActual);
 
     return MessageFrontUtils.createSimple(
-      `${this.ENTITY_NAME}`,
+      this.ENTITY_NAME,
       entity.denominacion,
       'editada',
     );
   }
 
+  // ============================================================
+  // REMOVE
+  // ============================================================
+  async remove(id: number, usuarioId: number) {
+    const entity = await this.findEntityById(id);
+
+    ensureNotSistemaEntity(entity, 'Producto');
+
+    const usuario = await this.usuarioService.findOne(usuarioId);
+    if (!usuario) {
+      throw new NotFoundException(`Usuario con ID ${usuarioId} no encontrado.`);
+    }
+
+    // Soft delete: lo aplica la capa de aplicación
+    entity.deletedAt = new Date();
+    entity.usuarioDeleted = usuario;
+
+    await this.repository.remove(entity);
+
+    return MessageFrontUtils.createSimple(
+      this.ENTITY_NAME,
+      entity.denominacion,
+      'eliminada',
+    );
+  }
+
+  // ============================================================
+  // STOCK
+  // ============================================================
+  async incrementarStock(
+    productoId: number,
+    cantidad: number,
+    origen?: string,
+    usuarioId?: number,
+  ): Promise<number> {
+    const producto = await this.repository.findOne(productoId);
+    if (!producto) {
+      throw new NotFoundException(`Producto con ID ${productoId} no encontrado`);
+    }
+
+    producto.ajustarStock(
+      cantidad,
+      TipoMovimientoStock.INGRESO,
+      origen,
+      usuarioId,
+    );
+
+    await this.repository.save(producto);
+    return producto.stock;
+  }
+
+  async decrementarStock(
+    productoId: number,
+    cantidad: number,
+    origen?: string,
+    usuarioId?: number,
+  ): Promise<number> {
+    const producto = await this.repository.findOne(productoId);
+    if (!producto) {
+      throw new NotFoundException(`Producto con ID ${productoId} no encontrado`);
+    }
+
+    producto.ajustarStock(
+      -cantidad,
+      TipoMovimientoStock.EGRESO,
+      origen,
+      usuarioId,
+    );
+
+    await this.repository.save(producto);
+    return producto.stock;
+  }
+
+  async ajustarStockManual(
+    productoId: number,
+    dto: AjustarStockManualDto,
+  ): Promise<{ message: string; stockActual: number }> {
+    await this.usuarioValidator.validarUsuarioExiste(dto.usuarioId);
+
+    const producto = await this.repository.findOne(productoId);
+    if (!producto) {
+      throw new NotFoundException(`Producto con ID ${productoId} no encontrado`);
+    }
+
+    producto.ajustarStock(
+      dto.cantidad,
+      TipoMovimientoStock.AJUSTE_MANUAL,
+      dto.motivo,
+      dto.usuarioId,
+    );
+
+    await this.repository.save(producto);
+
+    return {
+      message: `Stock ajustado para "${producto.denominacion}"`,
+      stockActual: producto.stock,
+    };
+  }
+
+  // ============================================================
+  // CONSULTAS
+  // ============================================================
   async findByRapido(
     codigo: string,
     exacto: boolean,
     skip: number,
     take: number,
   ): Promise<{ data: GetProductoDto[]; total: number }> {
-    this.logger.warn(`service`);
     const result = await this.repository.findByRapido(
       codigo,
       exacto,
@@ -117,13 +218,10 @@ export class ProductoService {
       take,
     );
     return {
-      data: result.data.map((producto) => {
-        return ProductoMapper.toBusquedaDto(producto);
-      }),
+      data: result.data.map(ProductoMapper.toBusquedaDto),
       total: PaginacionUtils.totalItems(result.total),
     };
   }
-
 
   async findBy(
     denominacion: string,
@@ -137,7 +235,6 @@ export class ProductoService {
     skip: number,
     take: number,
   ): Promise<{ data: GetProductoDto[]; total: number }> {
-    this.logger.warn(`service`);
     const result = await this.repository.findBy(
       denominacion,
       codigoProveedor,
@@ -151,13 +248,10 @@ export class ProductoService {
       take,
     );
     return {
-      data: result.data.map((producto) => {
-        return ProductoMapper.toBusquedaDto(producto);
-      }),
+      data: result.data.map(ProductoMapper.toBusquedaDto),
       total: PaginacionUtils.totalItems(result.total),
     };
   }
-
 
   async buscarMarcaDesdeProducto(id: number) {
     return this.marcaService.findEntityById(id);
@@ -169,57 +263,33 @@ export class ProductoService {
 
   async findByIdConAuditoria(id: number) {
     const entity = await this.repository.findByIdConAuditoria(id);
-    if (!entity)
-      throw new NotFoundException(
-        `${this.ENTITY_NAME} con ID ${id} no encontrado.`,
-      );
-    return AuditoriaMapper.mapProductoToDto(entity);
-  }
-
-  async findDtoById(id: number) {
-    const entity = await this.repository.findOne(id);
-    if (!entity)
-      throw new NotFoundException(
-        `${this.ENTITY_NAME} con ID ${id} no encontrado.`,
-      );
-    this.logger.log(`b1x`);
-    return ProductoMapper.toDto(entity);
-  }
-
-  async findEntityById(id: number) {
-    const entity = await this.repository.findOne(id);
-    if (!entity)
-      throw new NotFoundException(
-        `${this.ENTITY_NAME} con ID ${id} no encontrado.`,
-      );
-    return entity;
-  }
-
-  async remove(id: number, usuarioId: number) {
-    const entity = await this.findEntityById(id);
-
     if (!entity) {
       throw new NotFoundException(
         `${this.ENTITY_NAME} con ID ${id} no encontrado.`,
       );
     }
-    
-
-    ensureNotSistemaEntity(entity, 'Producto');
-
-    const usuario = await this.usuarioService.findOne(usuarioId);
-    if (!usuario) {
-      throw new NotFoundException(`Usuario con ID ${usuarioId} no encontrado.`);
-    }
-
-    await this.repository.remove(entity, usuario);
-    return MessageFrontUtils.createSimple(
-      `${this.ENTITY_NAME}`,
-      entity.denominacion,
-      'eliminada',
-    );
+    return AuditoriaMapper.mapProductoToDto(entity);
   }
 
+  async findDtoById(id: number) {
+    const entity = await this.repository.findOne(id);
+    if (!entity) {
+      throw new NotFoundException(
+        `${this.ENTITY_NAME} con ID ${id} no encontrado.`,
+      );
+    }
+    return ProductoMapper.toDto(entity);
+  }
+
+  async findEntityById(id: number) {
+    const entity = await this.repository.findOne(id);
+    if (!entity) {
+      throw new NotFoundException(
+        `${this.ENTITY_NAME} con ID ${id} no encontrado.`,
+      );
+    }
+    return entity;
+  }
 
   async findAllForLineas(denominacion: string) {
     return this.lineaService.findAllFor(denominacion);
@@ -234,20 +304,14 @@ export class ProductoService {
     skip = 0,
     take = 10,
   ): Promise<{ data: GetProductoDto[]; total: number }> {
-    this.logger.log(
-      `  Buscando en srvice producto o ${denominacion}  skip=${skip}, take=${take}`,
-    );
     const result =
       await this.repository.findByDenominacionCodigoProveedorFiltered(
         denominacion,
         skip,
         take,
       );
-    this.logger.log(result);
     return {
-      data: result.data.map((producto) => {
-        return ProductoMapper.toBusquedaDto(producto);
-      }),
+      data: result.data.map(ProductoMapper.toBusquedaDto),
       total: PaginacionUtils.totalItems(result.total),
     };
   }
@@ -255,66 +319,19 @@ export class ProductoService {
   async existsProductosActivosByMarca(marcaId: number): Promise<boolean> {
     return this.repository.existsProductosActivosByMarca(marcaId);
   }
+
   async existsProductosActivosByLinea(lineaId: number): Promise<boolean> {
     return this.repository.existsProductosActivosByLinea(lineaId);
   }
-
 
   async findByIds(ids: number[]): Promise<Producto[]> {
     return this.repository.findByIds(ids);
   }
 
-  async incrementarStock(
-    uow: IUnitOfWork,
-    productoId: number,
-    cantidad: number,
-    origen?: string,
-  ): Promise<number> {
-    return this.ajustarStockInterno(uow, productoId, cantidad, origen);
-  }
-
-  async decrementarStock(
-    uow: IUnitOfWork,
-    productoId: number,
-    cantidad: number,
-    origen?: string,
-  ): Promise<number> {
-    return this.ajustarStockInterno(uow, productoId, -cantidad, origen);
-  }
-
-  private async ajustarStockInterno(
-    uow: IUnitOfWork,
-    productoId: number,
-    delta: number,
-    origen?: string,
-  ): Promise<number> {
-    const producto = await this.repository.findOne(productoId);
-    if (!producto) {
-      throw new Error(`Producto con ID ${productoId} no encontrado`);
-    }
-
-    const stockActual = producto.stock ?? 0;
-    const nuevoStock = stockActual + delta;
-
-    // Política opcional
-    // if (nuevoStock < 0) throw ...
-
-    producto.stock = nuevoStock;
-    await this.repository.updateEntity(uow, producto);
-
-    this.logger.log(
-      `[StockService] ${origen ?? 'Desconocido'} → ${stockActual} → ${nuevoStock}`,
-    );
-
-    return nuevoStock;
-  }
-
-  /**
-   * Orquesta todas las validaciones necesarias para crear un producto
-   * @private
-   */
+  // ============================================================
+  // VALIDACIONES PRIVADAS
+  // ============================================================
   private async validarYPrepararCreacion(dto: CreateProductoDto) {
-    // Validar datos  (Domain - sin DB)
     this.intrinsicValidationService.validarDatosBasicos({
       denominacion: dto.denominacion,
       marcaId: dto.marcaId,
@@ -322,7 +339,6 @@ export class ProductoService {
       alicuotaIva: dto.alicuotaIva,
     });
 
-    // Validar unicidad (Infrastructure - DB)
     await this.uniquenessValidator.validarDenominacionUnica(dto.denominacion);
 
     if (dto.codigoProveedor) {
@@ -331,61 +347,44 @@ export class ProductoService {
         0,
       );
     }
-    // 3 Validar entidades relacionadas existen (Infrastructure - DB)
-    const { marca, linea, } =
+
+    const { marca, linea } =
       await this.relatedEntitiesValidator.validarYObtenerEntidadesRelacionadas(
         dto.marcaId,
         dto.lineaId,
-
       );
 
-    //  Validar reglas de negocio sobre entidades (Domain)
-    this.validationService.validarEntidadesRelacionadas(
-      marca,
-      linea,
+    this.validationService.validarEntidadesRelacionadas(marca, linea);
 
-    );
-
-
-    //  Validar usuario existe (Infrastructure)
     const usuario = await this.usuarioValidator.validarUsuarioExiste(
       dto.usuarioCreatedId,
     );
 
     return { marca, linea, usuario };
   }
-  /**
-   * Orquesta todas las validaciones necesarias para actualizar un producto
-   * @private
-   */
+
   private async validarYPrepararActualizacion(
     id: number,
     dto: UpdateProductoDto,
   ) {
-    // Obtener producto actual
     const productoActual = await this.repository.findOne(id);
-    if (!productoActual)
+    if (!productoActual) {
       throw new NotFoundException(
         `${this.ENTITY_NAME} con ID ${id} no encontrado.`,
       );
+    }
 
-    if (
-      productoActual.lineaId == null ||
-      productoActual.marcaId == null
-    ) {
+    if (productoActual.lineaId == null || productoActual.marcaId == null) {
       throw new InternalServerErrorException('Producto en estado inválido');
     }
 
-    //  Validar datos intrínsecos
     this.intrinsicValidationService.validarDatosBasicos({
       denominacion: dto.denominacion ?? productoActual.denominacion,
       marcaId: dto.marcaId ?? productoActual.marcaId,
       lineaId: dto.lineaId ?? productoActual.lineaId,
       alicuotaIva: dto.alicuotaIva ?? productoActual.alicuotaIva,
-
     });
 
-    // Validar unicidad (excluyendo el ID actual)
     if (dto.denominacion) {
       await this.uniquenessValidator.validarDenominacionUnica(
         dto.denominacion,
@@ -393,28 +392,18 @@ export class ProductoService {
       );
     }
 
-    // Validar entidades relacionadas
-    const { marca, linea, } =
+    const { marca, linea } =
       await this.relatedEntitiesValidator.validarYObtenerEntidadesRelacionadas(
         dto.marcaId ?? productoActual.marcaId,
         dto.lineaId ?? productoActual.lineaId,
-
       );
 
-    //  Validar reglas de negocio
-    this.validationService.validarEntidadesRelacionadas(
-      marca,
-      linea,
+    this.validationService.validarEntidadesRelacionadas(marca, linea);
 
-    );
-
-    // 5 Validar usuario
     const usuario = await this.usuarioValidator.validarUsuarioExiste(
       dto.usuarioUpdatedId,
     );
 
-    return { marca, linea, usuario };
+    return { marca, linea, usuario, productoActual };
   }
-
-
 }

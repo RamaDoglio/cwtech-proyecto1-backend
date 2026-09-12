@@ -10,6 +10,7 @@ import { Rol } from '../rol/domain/entities/rol.entity';
 import { Usuario } from '../usuario/domain/entities/usuario.entity';
 import { UsuarioService } from '../usuario/application/services/usuario.service';
 import { RolModule } from '../rol/rol.module';
+import type { StringValue } from 'ms';
 
 @Module({
   imports: [TypeOrmModule.forFeature([Usuario, Rol]),
@@ -19,7 +20,7 @@ import { RolModule } from '../rol/rol.module';
     inject: [ConfigService],
     useFactory: async (configService: ConfigService) => ({
       secret: configService.get<string>('JWT_SECRET'),
-      signOptions: { expiresIn: configService.get<string>('JWT_EXPIRATION_ACCESS') }, // Valor por defecto
+      signOptions: {    expiresIn: configService.get<string>('JWT_EXPIRES_IN') as StringValue,},
     }),
   }),
   UsuarioModule,

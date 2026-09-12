@@ -10,13 +10,15 @@ import {
   IsInt,
   IsEnum,
   Min,
-  Max,
   ValidateIf,
   IsPositive,
 } from 'class-validator';
 import { AlicuotaIva } from 'src/modules/organizacion/enums/alicuota-iva.enum';
-import { IsGreaterThanOrEqualToProperty } from 'src/modules/common/validators/cross-field.validators';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
+/**
+ * El precio de venta es derivado por el backend y no forma parte de este contrato.
+ */
 export class CreateProductoDto {
   @Transform(({ value }) => value.trim().toLowerCase())
   @IsString({ message: 'La denominación debe ser una cadena de texto.' }) // Valida que sea string
@@ -83,14 +85,24 @@ export class CreateProductoDto {
   @Transform(({ value }) => value === 'true' || value === true)
   envioGratis?: boolean;
 
-  @IsOptional()
+  @ApiProperty({
+    example: 100,
+    description: 'Costo de adquisición en moneda local. Es obligatorio.',
+  })
+  @IsNotEmpty({ message: 'El costo es obligatorio.' })
   @IsNumber()
-  @Min(0, { message: 'El costo debe ser mayor o igual a 0.' })
-  costo?: number;
+  @Min(0, { message: 'El costo debe ser un número no negativo.' })
+  costo: number;
 
   @IsBoolean()
   utilizaPack: boolean;
 
+  @ApiPropertyOptional({
+    example: 20,
+    description:
+      'Margen particular sobre el costo. Si se omite, se aplica el margen general del 15%.',
+    minimum: 0,
+  })
   @ValidateIf((o) => o.utilizaPack === true)
   @IsNotEmpty({ message: 'La cantidad por pack es obligatoria.' })
   @IsInt()
@@ -113,18 +125,8 @@ export class CreateProductoDto {
 
   @IsOptional()
   @IsNumber()
-  @Min(0, { message: 'El porcentaje mínimo debe ser mayor o igual a 0.' })
-  @Max(999, { message: 'El porcentaje máximo permitido es de 999.' })
-  porcentaje?: number;
-
-  @IsOptional()
-  @IsNumber()
-  @Min(0, { message: 'El precio debe ser mayor o igual a 0.' })
-  @IsGreaterThanOrEqualToProperty(
-    'costo',
-    'El precio debe ser mayor o igual que el costo.',
-  )
-  precio: number;
+  @Min(0, { message: 'El margen debe ser un número no negativo.' })
+  margen?: number;
 
   createdAt?: Date;
 
