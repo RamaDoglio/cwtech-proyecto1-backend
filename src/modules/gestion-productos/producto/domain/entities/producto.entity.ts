@@ -6,7 +6,7 @@ import {
   UpdateDateColumn,
   ManyToOne,
   Index,
-  JoinColumn,
+  JoinColumn, OneToMany
 } from 'typeorm';
 import { Linea } from '../../../linea/domain/entities/linea.entity';
 import { Marca } from '../../../marca/domain/entities/marca.entity';
@@ -18,6 +18,8 @@ import { MonetarioColumn } from 'src/modules/common/decorators/monetario-column.
 import { CantidadColumn } from 'src/modules/common/decorators/cantidad-column.decorator';
 import { PorcentajeColumn } from 'src/modules/common/decorators/porcentaje-column.decorator';
 import { Proveedor } from 'src/modules/organizacion/proveedor/domain/entities/proveedor.entity';
+import { MovimientoStock, TipoMovimientoStock } from './movimiento-stock.entity';
+import { StockNegativoException } from '../../../../common/exceptions/stock-negativo.exception';
 
 @Entity('producto')
 export class Producto {
@@ -172,4 +174,44 @@ export class Producto {
 
   @Column({ type: 'text', nullable: true })
   codigoReferencia?: string | null;
+
+  // ========= Movimiento-Stock =============
+
+  @OneToMany(() => MovimientoStock, (movimiento) => movimiento.producto, {
+    cascade: true,
+    eager: false,
+  })
+  movimientos: MovimientoStock[];
+
+  // ============================================================
+  // Ajuste de stock — invariante del agregado Producto
+  // ============================================================
+  ajustarStock(
+    cantidad: number,
+    tipo: TipoMovimientoStock,
+    motivo?: string,
+    usuarioId?: number,
+  ): void {
+    // Invariante 1: la cantidad no puede ser 0 (delegada a MovimientoStock.crear)
+    // Invariante 2: ajuste manual requiere motivo (delegada a MovimientoStock.crear)
+
+    const nuevoStock = this.stock + cantidad;
+
+    // Invariante 3: el stock no puede quedar negativo
+    if (nuevoStock < 0) {
+      throw new StockNegativoException(nuevoStock);
+    }
+
+    const movimiento = MovimientoStock.crear(
+      this.id,
+      tipo,
+      cantidad,
+      motivo,
+      usuarioId,
+    );
+
+    this.movimientos.push(movimiento);
+
+    this.stock = nuevoStock;
+  }
 }

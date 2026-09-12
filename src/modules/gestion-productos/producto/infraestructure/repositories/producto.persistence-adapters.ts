@@ -1,25 +1,23 @@
+// infraestructure/repositories/producto.persistence-adapters.ts
 import { Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Transactional } from 'src/modules/common/decorators/transactional.decoratos';
 import { DatabaseConnectionException } from 'src/modules/common/exceptions/database-connection.exception';
 import { EntityNotFoundException } from 'src/modules/common/exceptions/entity-notFound-exceptions';
 import { IUnitOfWork } from 'src/modules/common/unit-of-work/iunit-of-work.';
-import { Linea } from 'src/modules/gestion-productos/linea/domain/entities/linea.entity';
-import { Marca } from 'src/modules/gestion-productos/marca/domain/entities/marca.entity';
-import { Usuario } from 'src/modules/gestion-usuario/usuario/domain/entities/usuario.entity';
 import { Repository, IsNull, DataSource } from 'typeorm';
 import { Producto } from '../../domain/entities/producto.entity';
 import { IProductoRepository } from '../../domain/interfaces/producto.repository-interface';
+import { Linea } from 'src/modules/gestion-productos/linea/domain/entities/linea.entity';
+import { Marca } from 'src/modules/gestion-productos/marca/domain/entities/marca.entity';
+import { Usuario } from 'src/modules/gestion-usuario/usuario/domain/entities/usuario.entity';
+import { ProductoConPrecioResuelto } from '../../domain/interfaces/producto-con-precio-resuelto.interface';
 import { CreateProductoDto } from '../../dto/create-producto.dto';
 import { UpdatePrecioDto } from '../../dto/update-precio.dto';
 import { UpdateProductoDto } from '../../dto/update-producto.dto';
-import { ProductoMapper } from '../../mappers/producto.mapper';
-
 
 @Injectable()
 export class ProductoPersistenceAdapter implements IProductoRepository {
   private readonly logger = new Logger(ProductoPersistenceAdapter.name);
-
   private readonly ENTITY_NAME = 'Producto';
 
   constructor(
@@ -27,53 +25,54 @@ export class ProductoPersistenceAdapter implements IProductoRepository {
     private readonly repository: Repository<Producto>,
     private readonly dataSource: DataSource,
     @Inject('UnitOfWork') public readonly uow: IUnitOfWork,
-  ) { }
+  ) {}
+  create(data: CreateProductoDto & ProductoConPrecioResuelto, linea: Linea, marca: Marca, usuario: Usuario): Promise<Producto> {
+    throw new Error('Method not implemented.');
+  }
+  update(id: number, data: UpdateProductoDto & ProductoConPrecioResuelto, linea: Linea, marca: Marca, usuario: Usuario): Promise<Producto> {
+    throw new Error('Method not implemented.');
+  }
+  updateEntity(uow: IUnitOfWork, data: Producto): Promise<Producto> {
+    throw new Error('Method not implemented.');
+  }
+  actualizarPrecio(id: number, dto: UpdatePrecioDto & ProductoConPrecioResuelto, usuario: Usuario): Promise<void> {
+    throw new Error('Method not implemented.');
+  }
 
+  // ============================================================
+  // Persistencia
+  // ============================================================
 
-  @Transactional()
-  async create(
-    data: CreateProductoDto,
-    linea: Linea,
-    marca: Marca,
-    usuario: Usuario,
-  ): Promise<Producto> {
-    const repo = this.uow.getRepository(Producto);
-    this.logger.log(`Creando un nuevo p ${this.ENTITY_NAME}`);
-
+  async save(producto: Producto): Promise<Producto> {
     try {
-      // DEBUG: Loggear todos los datos que llegan
-      this.logger.debug('Data recibida:', JSON.stringify(data, null, 2));
-      // Verificar que todos los objetos relacionados existan
-      this.logger.debug('Linea:', linea);
-      this.logger.debug('Marca:', marca);
-      this.logger.debug('Usuario:', usuario);
-
-      const nuevaEntity = repo.create({
-        ...data,
-        linea,
-        marca,
-        usuarioCreated: usuario,
-      });
-
-      this.logger.debug('Entity creada:', nuevaEntity);
-
-      const entityGuardada = await repo.save(nuevaEntity);
-      this.logger.log(`Entity guardada con ID: ${entityGuardada.id}`);
-
-      this.logger.log(
-        `${this.ENTITY_NAME} creado exitosamente con ID: ${entityGuardada.id}`,
-      );
-
-
-      return entityGuardada;
+      return await this.repository.save(producto);
     } catch (error) {
-      this.logger.error(`Error al crear ${this.ENTITY_NAME}:`, error);
-      this.logger.error('Stack trace:', error);
+      this.logger.error(`Error al guardar ${this.ENTITY_NAME}:`, error);
       throw new DatabaseConnectionException(
         'Error al guardar en la base de datos.',
       );
     }
   }
+
+  async remove(producto: Producto): Promise<Producto> {
+    if (producto.deletedAt) {
+      throw new NotFoundException('Entidad ya eliminada.');
+    }
+
+    try {
+      // El service ya seteó deletedAt y usuarioDeleted
+      return await this.repository.save(producto);
+    } catch (error) {
+      throw new DatabaseConnectionException(
+        'Error al guardar en la base de datos.',
+      );
+    }
+  }
+
+  // ============================================================
+  // Consultas individuales
+  // ============================================================
+
   async findOne(id: number): Promise<Producto | null> {
     try {
       const entity = await this.repository
@@ -84,18 +83,12 @@ export class ProductoPersistenceAdapter implements IProductoRepository {
         .andWhere('producto.deletedAt IS NULL')
         .getOne();
 
-      this.logger.warn(`rrr: ${entity}.`);
       if (!entity) {
         throw new EntityNotFoundException('Entidad no encontrada.');
       }
       return entity;
     } catch (error) {
-      if (error instanceof EntityNotFoundException) {
-        // Deja pasar la excepción específica
-        throw error;
-      }
-
-      // Otros errores son considerados como problemas de conexión
+      if (error instanceof EntityNotFoundException) throw error;
       throw new DatabaseConnectionException(
         'Error al conectar con la base de datos.',
       );
@@ -110,21 +103,14 @@ export class ProductoPersistenceAdapter implements IProductoRepository {
         .leftJoinAndSelect('producto.usuarioUpdated', 'usuarioUpdated')
         .leftJoinAndSelect('producto.usuarioDeleted', 'usuarioDeleted')
         .where('producto.id = :id', { id })
-
         .getOne();
 
-      this.logger.warn(`: ${entity}.`);
       if (!entity) {
         throw new EntityNotFoundException('Entidad no encontrada.');
       }
       return entity;
     } catch (error) {
-      if (error instanceof EntityNotFoundException) {
-        // Deja pasar la excepción específica
-        throw error;
-      }
-
-      // Otros errores son considerados como problemas de conexión
+      if (error instanceof EntityNotFoundException) throw error;
       throw new DatabaseConnectionException(
         'Error al conectar con la base de datos.',
       );
@@ -136,7 +122,7 @@ export class ProductoPersistenceAdapter implements IProductoRepository {
       const entity = await this.repository
         .createQueryBuilder('producto')
         .where('producto.id = :id', { id })
-        .andWhere('producto.deletedAt IS NULL') // Si usás soft delete
+        .andWhere('producto.deletedAt IS NULL')
         .getOne();
 
       if (!entity) {
@@ -144,77 +130,38 @@ export class ProductoPersistenceAdapter implements IProductoRepository {
       }
       return entity;
     } catch (error) {
-      if (error instanceof EntityNotFoundException) {
-        throw error;
-      }
-
+      if (error instanceof EntityNotFoundException) throw error;
       throw new DatabaseConnectionException(
         'Error al conectar con la base de datos.',
       );
     }
   }
 
-  @Transactional()
-  async update(
-    id: number,
-    data: UpdateProductoDto,
-    linea: Linea,
-    marca: Marca,
-
-    usuario: Usuario,
-  ): Promise<Producto> {
-    const repo = this.uow.getRepository(Producto);
+  async findByDenominacion(denominacion: string): Promise<Producto | null> {
     try {
-      const entity = await this.findOne(id);
-
-      if (!entity) {
-        throw new NotFoundException(`EL prodcuto con ID ${id} no encontrada`);
-      }
-      const {
-
-        ...dataSinItems
-      } = data;
-
-      Object.assign(entity, dataSinItems, {
-        linea,
-        marca,
+      return await this.repository.findOne({
+        where: { denominacion, deletedAt: IsNull() },
       });
-
-      entity.usuarioUpdated = usuario; 
-      const entityActualizada = await repo.save(entity);
-
-
-      return entityActualizada;
-    } catch (error) {
-      this.logger.warn(`Items para eliminar: )}`);
-
-      throw new DatabaseConnectionException(error);
-    }
-  }
-
-
-  async updateEntity(uow: IUnitOfWork, producto: Producto): Promise<Producto> {
-    const repo = uow.getRepository(Producto);
-    return await repo.save(producto);
-  }
-
-  async remove(entity: Producto, usuario: Usuario): Promise<Producto> {
-
-    if (entity.deletedAt) {
-      throw new NotFoundException('Entidad  ya eliminada.');
-    }
-
-    try {
-      // Marcar como eliminada y guardar los cambios
-      entity.deletedAt = new Date();
-      entity.usuarioDeleted = usuario;
-      return await this.repository.save(entity);
     } catch (error) {
       throw new DatabaseConnectionException(
-        'Error al guardar en la base de datos.',
+        'Error al conectar con la base de datos.',
       );
     }
   }
+
+  async findByIds(ids: number[]): Promise<Producto[]> {
+    const uniqueIds = [...new Set(ids)];
+    if (uniqueIds.length === 0) return [];
+
+    return await this.repository
+      .createQueryBuilder('producto')
+      .where('producto.id IN (:...ids)', { ids: uniqueIds })
+      .getMany();
+  }
+
+  // ============================================================
+  // Consultas paginadas
+  // ============================================================
 
   async findBy(
     denominacion: string,
@@ -228,11 +175,10 @@ export class ProductoPersistenceAdapter implements IProductoRepository {
     skip: number,
     take: number,
   ): Promise<{ data: Producto[]; total: number }> {
-    this.logger.warn(`llega`);
     const query = this.repository
       .createQueryBuilder('producto')
       .leftJoinAndSelect('producto.marca', 'marca')
-      .leftJoinAndSelect('producto.linea', 'linea')
+      .leftJoinAndSelect('producto.linea', 'linea');
 
     if (denominacion || codigoProveedor || codigoReferencia) {
       const condiciones: string[] = [];
@@ -275,33 +221,24 @@ export class ProductoPersistenceAdapter implements IProductoRepository {
     if (linea_id) {
       query.andWhere('linea.id = :linea_id', { linea_id });
     }
-
-    this.logger.warn(`conStock llega como: ${conStock} (${typeof conStock})`);
-
     if (conStock) {
       query.andWhere('producto.stock > 0');
     }
+
     query.andWhere('producto.deletedAt IS NULL');
     query.orderBy('producto.denominacion', 'ASC');
-    // Paginación
     query.skip(skip).take(take);
 
     const [data, total] = await query.getManyAndCount();
-    this.logger.warn(`conStock llega como 1: ${data}`);
-    return {
-      data,
-      total,
-    };
+    return { data, total };
   }
 
   async findByRapido(
     codigo: string,
     exacto: boolean,
-    skip: any,
+    skip: number,
     take: number,
   ): Promise<{ data: Producto[]; total: number }> {
-    this.logger.warn(`llega`);
-
     const query = this.repository
       .createQueryBuilder('producto')
       .leftJoinAndSelect('producto.marca', 'marca')
@@ -309,22 +246,19 @@ export class ProductoPersistenceAdapter implements IProductoRepository {
       .leftJoinAndSelect('producto.proveedor', 'proveedor')
       .where('producto.deletedAt IS NULL');
 
-
     if (codigo) {
       if (exacto) {
-        // Exacto solo en los códigos
         query.andWhere(
           '(producto.codigoProveedor = :codigo OR producto.codigoReferencia = :codigo)',
           { codigo },
         );
       } else {
-        // Parcial en códigos Y denominación
         query.andWhere(
           `(
-        producto.codigoProveedor LIKE :codigo OR 
-        producto.codigoReferencia LIKE :codigo OR 
-        producto.denominacion LIKE :codigo
-      )`,
+            producto.codigoProveedor LIKE :codigo OR 
+            producto.codigoReferencia LIKE :codigo OR 
+            producto.denominacion LIKE :codigo
+          )`,
           { codigo: `%${codigo}%` },
         );
       }
@@ -334,17 +268,41 @@ export class ProductoPersistenceAdapter implements IProductoRepository {
     query.skip(skip).take(take);
 
     const [data, total] = await query.getManyAndCount();
-
-    this.logger.warn(`Resultados: ${data.length} encontrados`);
-
     return { data, total };
   }
+
+  async findByDenominacionCodigoProveedorFiltered(
+    denominacion: string,
+    skip = 0,
+    take = 10,
+  ): Promise<{ data: Producto[]; total: number }> {
+    try {
+      const query = this.repository
+        .createQueryBuilder('producto')
+        .leftJoinAndSelect('producto.marca', 'marca')
+        .leftJoinAndSelect('producto.linea', 'linea');
+
+      query.andWhere('producto.deletedAt IS NULL');
+      query.orderBy('producto.denominacion', 'ASC');
+      query.skip(skip).take(take);
+
+      const [data, total] = await query.getManyAndCount();
+      return { data, total };
+    } catch (error) {
+      throw new DatabaseConnectionException(
+        'Error al conectar con la base de datos.',
+      );
+    }
+  }
+
+  // ============================================================
+  // Existencias
+  // ============================================================
 
   async isCodigoProveedorDuplicado(
     codigoProveedor: string | null,
     id?: number,
   ): Promise<boolean> {
-    // Si el código es nulo, vacío o '0', no hace falta verificar duplicados
     if (
       !codigoProveedor ||
       codigoProveedor.trim() === '' ||
@@ -359,42 +317,11 @@ export class ProductoPersistenceAdapter implements IProductoRepository {
         codigoProveedor,
       });
 
-    // Si se está actualizando, excluimos el producto actual
     if (id) {
       query.andWhere('producto.id != :id', { id });
     }
 
-    const existe = await query.getExists();
-
-    return existe; // true si existe otro con el mismo código
-  }
-
-  @Transactional()
-  async actualizarPrecio(id: number, dto: UpdatePrecioDto, usuario: Usuario) {
-    const repo = this.uow.getRepository(Producto);
-    const entity = await repo.findOne({ where: { id } });
-
-    if (!entity) {
-      throw new NotFoundException('Producto no encontrado');
-    }
-
-    ProductoMapper.mapPrecios(entity, dto, usuario);
-
-    await repo.save(entity);
-
-  }
-
-  async findByDenominacion(denominacion: string): Promise<Producto | null> {
-    try {
-      const entity = await this.repository.findOne({
-        where: { denominacion, deletedAt: IsNull() },
-      });
-      return entity;
-    } catch (error) {
-      throw new DatabaseConnectionException(
-        'Error al conectar con la base de datos.',
-      );
-    }
+    return await query.getExists();
   }
 
   async existsByDenominacion(
@@ -414,35 +341,33 @@ export class ProductoPersistenceAdapter implements IProductoRepository {
       const count = await queryBuilder.getCount();
       return count > 0;
     } catch (error) {
-      this.logger.error(
-        `Error verificando existencia de denominación:}`,
-      );
+      this.logger.error(`Error verificando existencia de denominación: ${error}`);
       throw new DatabaseConnectionException(
         'Error al conectar con la base de datos.',
       );
     }
   }
 
-  async findByDenominacionCodigoProveedorFiltered(
-    denominacion: string,
-    skip = 0,
-    take = 10,
-  ): Promise<{ data: Producto[]; total: number }> {
+  async existsByCodigoProveedor(
+    codigoProveedor: string,
+    excludeId: number,
+  ): Promise<boolean> {
     try {
-      const query = this.repository
+      const queryBuilder = this.repository
         .createQueryBuilder('producto')
-        .leftJoinAndSelect('producto.marca', 'marca')
-        .leftJoinAndSelect('producto.linea', 'linea')
+        .where('producto.codigoProveedor = :codigoProveedor', {
+          codigoProveedor,
+        })
+        .andWhere('producto.deletedAt IS NULL');
 
-      query.andWhere('producto.deletedAt IS NULL');
-      query.orderBy('producto.denominacion', 'ASC');
-      // Paginación
-      query.skip(skip).take(take);
+      if (excludeId) {
+        queryBuilder.andWhere('producto.id != :excludeId', { excludeId });
+      }
 
-      const [data, total] = await query.getManyAndCount();
-
-      return { data, total };
+      const count = await queryBuilder.getCount();
+      return count > 0;
     } catch (error) {
+      this.logger.error(`Error verificando existencia de código: ${error}`);
       throw new DatabaseConnectionException(
         'Error al conectar con la base de datos.',
       );
@@ -465,50 +390,9 @@ export class ProductoPersistenceAdapter implements IProductoRepository {
       .createQueryBuilder('producto')
       .where('producto.linea_id = :lineaId', { lineaId })
       .andWhere('producto.deletedAt IS NULL')
-      .limit(1) // opcional, para optimizar
+      .limit(1)
       .getCount();
 
     return count > 0;
   }
-
-  // En ProductoService
-  async findByIds(ids: number[]): Promise<Producto[]> {
-
-    const uniqueIds = [...new Set(ids)];
-
-    if (uniqueIds.length === 0) {
-      return [];
-    }
-
-    return await this.repository
-      .createQueryBuilder('producto')
-      .where('producto.id IN (:...ids)', { ids: uniqueIds })
-      .getMany();
-  }
-
-
-  async existsByCodigoProveedor(codigoProveedor: string, excludeId: number): Promise<boolean> {
-    try {
-      const queryBuilder = this.repository
-        .createQueryBuilder('producto')
-        .where('producto.codigoProveedor = :codigoProveedor', { codigoProveedor })
-        .andWhere('producto.deletedAt IS NULL');
-
-      if (excludeId) {
-        queryBuilder.andWhere('producto.id != :excludeId', { excludeId });
-      }
-
-      const count = await queryBuilder.getCount();
-      return count > 0;
-    } catch (error) {
-      this.logger.error(
-        `Error verificando existencia de denominación:}`,
-      );
-      throw new DatabaseConnectionException(
-        'Error al conectar con la base de datos.',
-      );
-    }
-  }
-
 }
-

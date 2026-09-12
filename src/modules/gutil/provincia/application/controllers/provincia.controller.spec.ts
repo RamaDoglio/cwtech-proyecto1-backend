@@ -1,6 +1,16 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ProvinciaController } from './provincia.controller';
-import { ProvinciaService } from '../services/provincia.serviceervice';
+import { ProvinciaService } from '../services/provincia.service';
+
+const mockProvinciaService = {
+  create: jest.fn(),
+  findAll: jest.fn(),
+  findByDenominacionFiltered: jest.fn(),
+  findAllFor: jest.fn(),
+  findOne: jest.fn(),
+  update: jest.fn(),
+  remove: jest.fn(),
+};
 
 describe('ProvinciaController', () => {
   let controller: ProvinciaController;
@@ -8,7 +18,7 @@ describe('ProvinciaController', () => {
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [ProvinciaController],
-      providers: [ProvinciaService],
+      providers: [{ provide: ProvinciaService, useValue: mockProvinciaService }],
     }).compile();
 
     controller = module.get<ProvinciaController>(ProvinciaController);
