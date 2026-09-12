@@ -67,3 +67,6 @@ docker-compose.*.yml
 
 src/*/.js
 src/*/.js.map
+
+.opencode/
+.ocx/
