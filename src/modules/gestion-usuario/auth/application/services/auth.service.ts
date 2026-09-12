@@ -16,6 +16,7 @@ import * as nodemailer from 'nodemailer';
 import { CambiarContrasenaDto } from '../../dto/cambiar-contrasena.dto';
 import { RecuperarPasswordDto } from '../../dto/recuperar-contrasena.dto';
 import { VerificarCodigoDto } from '../../dto/verificar-codigo.dto';
+import type { StringValue } from 'ms';
 import { PersonalPersistenceAdapter } from 'src/modules/organizacion/personal/infraestructure/repositories/personal.persistence-adapters';
 
 @Injectable()
@@ -25,6 +26,7 @@ export class AuthService {
     private readonly usuarioService: UsuarioService,
     private readonly configService: ConfigService,
   ) {}
+
   async registrarUsuario(
     registrarUsuarioDto: RegistrarUsuarioDto,
   ): Promise<any> {
@@ -63,22 +65,22 @@ export class AuthService {
     const accessTokenExp = this.configService.get<string>(
       'JWT_EXPIRATION_ACCESS',
       '60s',
-    );
+    ) as StringValue;
     const refreshTokenExp = this.configService.get<string>(
       'JWT_EXPIRATION_REFRESH',
       '7d',
-    );
+    ) as StringValue;
 
     // Generar los tokens
-  // const payload = { id: usuario.id, rolId: 1 , empresaId: empresaId , puntoVentaId: process.env.PUNTO_VENTA_ACTIVO_ID };
+    // const payload = { id: usuario.id, rolId: 1 , empresaId: empresaId , puntoVentaId: process.env.PUNTO_VENTA_ACTIVO_ID };
 
     const payload = {
       sub: usuario.id,
-      personalId:usuario.personalId,
+      personalId: usuario.personalId,
       roles: usuario.roles.map((r) => r.id),
       empresaId: empresaId,
       puntoVentaId: process.env.PUNTO_VENTA_ACTIVO_ID,
-    };  
+    };
 
     const accessToken = this.jwtService.sign(payload, {
       expiresIn: accessTokenExp,
@@ -146,15 +148,14 @@ export class AuthService {
       puntoVentaId: process.env.PUNTO_VENTA_ACTIVO_ID,
     };
 
-
     const accessTokenExp = this.configService.get<string>(
       'JWT_EXPIRATION_ACCESS',
       '60s',
-    );
+    ) as StringValue;
     const refreshTokenExp = this.configService.get<string>(
       'JWT_EXPIRATION_REFRESH',
       '7d',
-    );
+    ) as StringValue;
 
     const accessToken = this.jwtService.sign(payloadJwt, {
       expiresIn: accessTokenExp,
