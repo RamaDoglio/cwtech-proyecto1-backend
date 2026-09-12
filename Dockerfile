@@ -5,6 +5,9 @@ FROM node:20-alpine As development
 # Create app directory
 WORKDIR /usr/src/app
 
+# Fijar Yarn 1.22.22 explícitamente (por si la imagen base cambia en el futuro)
+RUN corepack enable && corepack prepare yarn@1.22.22 --activate
+
 # Copy application dependency manifests to the container image.
 # A wildcard is used to ensure copying both package.json AND package-lock.json (when available).
 # Copying this first prevents re-running npm install on every code change.
@@ -25,6 +28,8 @@ USER node
 FROM node:20-alpine As build
 
 WORKDIR /usr/src/app
+
+RUN corepack enable && corepack prepare yarn@1.22.22 --activate
 
 COPY --chown=node:node package.json yarn.lock ./
 
