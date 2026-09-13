@@ -1,6 +1,15 @@
+// Mockear @nestjs/mapped-types para evitar el error de ESM/CJS
+jest.mock('@nestjs/mapped-types', () => ({
+  PartialType: () => class {},
+  OmitType: () => class {},
+  IntersectionType: () => class {},
+  PickType: () => class {},
+}));
+
 import { Test, TestingModule } from '@nestjs/testing';
 import { MarcaController } from './marca.controller';
 import { MarcaService } from '../services/marca.service';
+import { AuthGuard } from 'src/modules/gestion-usuario/auth/auth.guard';
 
 // ==================== MOCK DEL SERVICIO ====================
 const mockMarcaService = {
@@ -19,7 +28,10 @@ describe('MarcaController', () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [MarcaController],
       providers: [{ provide: MarcaService, useValue: mockMarcaService }],
-    }).compile();
+    })
+      .overrideGuard(AuthGuard)
+      .useValue({ canActivate: jest.fn(() => true) })
+      .compile();
 
     controller = module.get<MarcaController>(MarcaController);
   });
@@ -28,7 +40,6 @@ describe('MarcaController', () => {
     expect(controller).toBeDefined();
   });
 
-  // Puedes conservar los tests específicos que tenías, adaptando los nombres
   describe('findByDenominacionFiltered', () => {
     it('debería llamar a service.findBy con los parámetros correctos', async () => {
       const dto = { denominacion: 'PRUEBA', skip: 0, take: 10, incluirEliminados: false };

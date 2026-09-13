@@ -1,6 +1,15 @@
+// Mockear @nestjs/mapped-types para evitar el error de ESM/CJS
+jest.mock('@nestjs/mapped-types', () => ({
+  PartialType: () => class {},
+  OmitType: () => class {},
+  IntersectionType: () => class {},
+  PickType: () => class {},
+}));
+
 import { Test, TestingModule } from '@nestjs/testing';
 import { ProductoController } from './producto.controller';
 import { ProductoService } from '../services/producto.service';
+import { AuthGuard } from 'src/modules/gestion-usuario/auth/auth.guard';
 
 // Mock del servicio, sin necesidad de importar DTOs
 const mockProductoService = {
@@ -26,7 +35,10 @@ describe('ProductoController', () => {
       providers: [
         { provide: ProductoService, useValue: mockProductoService },
       ],
-    }).compile();
+    })
+      .overrideGuard(AuthGuard)
+      .useValue({ canActivate: jest.fn(() => true) })
+      .compile();
 
     controller = module.get<ProductoController>(ProductoController);
   });
