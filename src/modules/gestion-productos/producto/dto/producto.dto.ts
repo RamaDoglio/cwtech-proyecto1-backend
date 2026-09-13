@@ -54,7 +54,7 @@ export class ProductoDto {
 
   @ApiProperty()
   @IsNumber()
-  porcentaje: number;
+  margen: number;
 
   @ApiProperty()
   @IsBoolean()

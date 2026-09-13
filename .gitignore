@@ -1,7 +1,7 @@
 # compiled output
-/dist
-/node_modules
-/build
+dist
+node_modules
+build
 
 # Logs
 logs
@@ -63,3 +63,6 @@ docker-compose.*.yml
 
 src/*/.js
 src/*/.js.map
+
+.opencode/
+.ocx/

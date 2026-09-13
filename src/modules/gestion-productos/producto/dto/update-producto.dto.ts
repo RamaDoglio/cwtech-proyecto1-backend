@@ -1,4 +1,4 @@
-import { PartialType } from '@nestjs/mapped-types';
+import { PartialType } from '@nestjs/swagger';
 import { CreateProductoDto } from './create-producto.dto';
 import {
   IsNotEmpty,
@@ -23,5 +23,5 @@ export class UpdateProductoDto extends PartialType(CreateProductoDto) {
   @IsInt({ message: 'El usuarioUpdatedId debe ser un número entero.' })
   usuarioUpdatedId: number;
 
-  updatedAt: Date;
+  updatedAt?: Date;
 }

@@ -6,20 +6,21 @@ import { UpdateProductoDto } from '../../dto/update-producto.dto';
 import { IUnitOfWork } from 'src/modules/common/unit-of-work/iunit-of-work.';
 import { Usuario } from 'src/modules/gestion-usuario/usuario/domain/entities/usuario.entity';
 import { UpdatePrecioDto } from '../../dto/update-precio.dto';
+import { ProductoConPrecioResuelto } from './producto-con-precio-resuelto.interface';
 
 export interface IProductoRepository {
+  // ===== Persistencia =====
+  save(producto: Producto): Promise<Producto>;
+  remove(producto: Producto): Promise<Producto>;
 
-  create(
-    data: CreateProductoDto,
-    linea: Linea,
-    marca: Marca,
-    usuario: Usuario,
-  ): Promise<Producto>;
-
+  // ===== Consultas individuales =====
   findOne(id: number): Promise<Producto | null>;
   findByIdConAuditoria(id: number): Promise<Producto | null>;
+  findByIdWithoutRelations(id: number): Promise<Producto | null>;
   findByDenominacion(denominacion: string): Promise<Producto | null>;
+  findByIds(ids: number[]): Promise<Producto[]>;
 
+  // ===== Consultas paginadas =====
   findBy(
     denominacion: string,
     codigoProveedor: string,
@@ -36,34 +37,9 @@ export interface IProductoRepository {
   findByRapido(
     codigo: string,
     exacto: boolean,
-    skip: any,
+    skip: number,
     take: number,
   ): Promise<{ data: Producto[]; total: number }>;
-
-
-  findByIdWithoutRelations(id: number): Promise<Producto | null> | undefined;
-
-  update(
-    id: number,
-    data: UpdateProductoDto,
-    linea: Linea,
-    marca: Marca,
-    usuario: Usuario,
-  ): Promise<Producto>;
-
-  updateEntity(uow: IUnitOfWork, data: Producto): Promise<Producto>;
-
-  actualizarPrecio(
-    id: number,
-    dto: UpdatePrecioDto,
-    usuario: Usuario,
-  ): Promise<void>;
-  remove(data: Producto, usuario: Usuario): Promise<Producto>;
-
-  isCodigoProveedorDuplicado(
-    codigoProveedor: string | null,
-    id?: number,
-  ): Promise<boolean>;
 
   findByDenominacionCodigoProveedorFiltered(
     denominacion: string,
@@ -71,13 +47,10 @@ export interface IProductoRepository {
     take: number,
   ): Promise<{ data: Producto[]; total: number }>;
 
-  existsByDenominacion(
-    denominacion: string,
-    excludeId?: number,
-  ): Promise<boolean>;
+  // ===== Existencias =====
+  existsByDenominacion(denominacion: string, excludeId?: number): Promise<boolean>;
   existsByCodigoProveedor(codigoProveedor: string, excludeId: number): Promise<boolean>;
   existsProductosActivosByMarca(marcaId: number): Promise<boolean>;
   existsProductosActivosByLinea(lineaId: number): Promise<boolean>;
-
-  findByIds(ids: number[]): Promise<Producto[]>;
+  isCodigoProveedorDuplicado(codigoProveedor: string | null, id?: number): Promise<boolean>;
 }

@@ -3,6 +3,7 @@ import { ProductoController } from './application/controllers/producto.controlle
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { NormalizeDenominacionPipe } from 'src/modules/common/pipes/normalize-denominations.pipe';
 import { Producto } from './domain/entities/producto.entity';
+import { MovimientoStock } from './domain/entities/movimiento-stock.entity';
 import { ProductoRepository } from './infraestructure/repositories/producto.repository';
 import { LineaModule } from '../linea/linea.module';
 import { MarcaModule } from '../marca/marca.module';
@@ -20,10 +21,9 @@ import { ProductoValidationService } from './domain/services/producto-validation
 import { ProductoIntrinsicValidationService } from './domain/services/producto-intrinsic-validation.service.ts';
 import { ProductoDeletePolicy } from './application/policies/producto-delete.policy';
 
-
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Producto]),
+    TypeOrmModule.forFeature([Producto, MovimientoStock]), // ✅ uno solo, con ambos
     CommonModule,
     forwardRef(() => LineaModule),
     forwardRef(() => MarcaModule),
@@ -32,7 +32,7 @@ import { ProductoDeletePolicy } from './application/policies/producto-delete.pol
   ],
 
   controllers: [ProductoController],
-  
+
   providers: [
     ProductoService,
     ProductoIntrinsicValidationService,
@@ -41,10 +41,16 @@ import { ProductoDeletePolicy } from './application/policies/producto-delete.pol
     ProductoUniquenessValidator,
     ProductoDeletePolicy,
 
+    // Adaptador concreto (usado por el facade)
+    ProductoPersistenceAdapter,
+
+    // Puerto → facade
     {
       provide: 'IProductoRepository',
       useClass: ProductoRepository,
     },
+
+    // UnitOfWork
     {
       provide: 'UnitOfWork',
       useFactory: (dataSource: DataSource): IUnitOfWork => {
@@ -52,10 +58,10 @@ import { ProductoDeletePolicy } from './application/policies/producto-delete.pol
       },
       inject: [DataSource],
     },
+
     NormalizeDenominacionPipe,
-    ProductoPersistenceAdapter,
   ],
-  
+
   exports: [
     TypeOrmModule,
     ProductoService,
