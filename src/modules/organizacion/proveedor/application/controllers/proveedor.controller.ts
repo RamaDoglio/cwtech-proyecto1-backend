@@ -54,7 +54,7 @@ export class ProveedorController {
   }
 
   @Get('search-by')
-  @Roles('Root', 'Administrador', 'Empleado')
+  @Roles('Root', 'Administrador', 'Empleado', 'Repartidor', 'Repositor', 'Vendedor')
   @ApiOperation({
     summary: 'Buscar proveedores por denominación con paginación',
   })

@@ -178,7 +178,8 @@ export class ProductoPersistenceAdapter implements IProductoRepository {
     const query = this.repository
       .createQueryBuilder('producto')
       .leftJoinAndSelect('producto.marca', 'marca')
-      .leftJoinAndSelect('producto.linea', 'linea');
+      .leftJoinAndSelect('producto.linea', 'linea')
+      .leftJoinAndSelect('producto.proveedor', 'proveedor');
 
     if (denominacion || codigoProveedor || codigoReferencia) {
       const condiciones: string[] = [];
@@ -220,6 +221,9 @@ export class ProductoPersistenceAdapter implements IProductoRepository {
     }
     if (linea_id) {
       query.andWhere('linea.id = :linea_id', { linea_id });
+    }
+    if (proveedor_id) {
+      query.andWhere('proveedor.id = :proveedor_id', { proveedor_id });
     }
     if (conStock) {
       query.andWhere('producto.stock > 0');
