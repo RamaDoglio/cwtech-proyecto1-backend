@@ -29,6 +29,8 @@ import { ProductoUniquenessValidator } from '../../infraestructure/validators/pr
 import { UsuarioValidator } from 'src/modules/common/utils/validation/usuario-validator';
 import { ProductoDeletePolicy } from '../policies/producto-delete.policy';
 import { TipoMovimientoStock } from '../../domain/entities/movimiento-stock.entity';
+import { MovimientoStock } from '../../domain/entities/movimiento-stock.entity';
+import { DataSource } from 'typeorm';
 
 @Injectable()
 export class ProductoService {
@@ -55,6 +57,7 @@ export class ProductoService {
     private readonly usuarioValidator: UsuarioValidator,
 
     private readonly productoDeletePolicy: ProductoDeletePolicy,
+    private readonly dataSource: DataSource,
   ) {}
 
   // ============================================================
@@ -138,20 +141,14 @@ export class ProductoService {
     origen?: string,
     usuarioId?: number,
   ): Promise<number> {
-    const producto = await this.repository.findOne(productoId);
-    if (!producto) {
-      throw new NotFoundException(`Producto con ID ${productoId} no encontrado`);
-    }
-
-    producto.ajustarStock(
+    const resultado = await this.ajustarStockEnTransaccion(
+      productoId,
       cantidad,
       TipoMovimientoStock.INGRESO,
       origen,
       usuarioId,
     );
-
-    await this.repository.save(producto);
-    return producto.stock;
+    return resultado.stock;
   }
 
   async decrementarStock(
@@ -160,20 +157,14 @@ export class ProductoService {
     origen?: string,
     usuarioId?: number,
   ): Promise<number> {
-    const producto = await this.repository.findOne(productoId);
-    if (!producto) {
-      throw new NotFoundException(`Producto con ID ${productoId} no encontrado`);
-    }
-
-    producto.ajustarStock(
+    const resultado = await this.ajustarStockEnTransaccion(
+      productoId,
       -cantidad,
       TipoMovimientoStock.EGRESO,
       origen,
       usuarioId,
     );
-
-    await this.repository.save(producto);
-    return producto.stock;
+    return resultado.stock;
   }
 
   async ajustarStockManual(
@@ -182,23 +173,17 @@ export class ProductoService {
   ): Promise<{ message: string; stockActual: number }> {
     await this.usuarioValidator.validarUsuarioExiste(dto.usuarioId);
 
-    const producto = await this.repository.findOne(productoId);
-    if (!producto) {
-      throw new NotFoundException(`Producto con ID ${productoId} no encontrado`);
-    }
-
-    producto.ajustarStock(
+    const resultado = await this.ajustarStockEnTransaccion(
+      productoId,
       dto.cantidad,
       TipoMovimientoStock.AJUSTE_MANUAL,
       dto.motivo,
       dto.usuarioId,
     );
 
-    await this.repository.save(producto);
-
     return {
-      message: `Stock ajustado para "${producto.denominacion}"`,
-      stockActual: producto.stock,
+      message: `Stock ajustado para "${resultado.denominacion}"`,
+      stockActual: resultado.stock,
     };
   }
 
@@ -361,6 +346,39 @@ export class ProductoService {
     );
 
     return { marca, linea, usuario };
+  }
+
+  private async ajustarStockEnTransaccion(
+    productoId: number,
+    cantidad: number,
+    tipo: TipoMovimientoStock,
+    motivo?: string,
+    usuarioId?: number,
+  ): Promise<{ stock: number; denominacion: string }> {
+    return this.dataSource.transaction(async (manager) => {
+      // Serializa ajustes del mismo producto y evita actualizaciones perdidas.
+      const producto = await manager.findOne(Producto, {
+        where: { id: productoId },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (!producto) {
+        throw new NotFoundException(
+          `Producto con ID ${productoId} no encontrado`,
+        );
+      }
+
+      const movimiento = producto.ajustarStock(
+        cantidad,
+        tipo,
+        motivo,
+        usuarioId,
+      );
+
+      await manager.update(Producto, producto.id, { stock: producto.stock });
+      await manager.save(MovimientoStock, movimiento);
+
+      return { stock: producto.stock, denominacion: producto.denominacion };
+    });
   }
 
   private async validarYPrepararActualizacion(

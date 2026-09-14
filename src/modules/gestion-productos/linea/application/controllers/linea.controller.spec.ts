@@ -1,9 +1,17 @@
+// Mockear @nestjs/mapped-types para evitar el error de ESM/CJS
+jest.mock('@nestjs/mapped-types', () => ({
+  PartialType: () => class {},
+  OmitType: () => class {},
+  IntersectionType: () => class {},
+  PickType: () => class {},
+}));
+
 import { Test, TestingModule } from '@nestjs/testing';
 import { LineaController } from './linea.controller';
 import { LineaService } from '../services/linea.service';
+import { AuthGuard } from 'src/modules/gestion-usuario/auth/auth.guard';
 
-// ==================== MOCKS ====================
-
+// ==================== MOCK DEL SERVICIO ====================
 const mockLineaService = {
   findByDenominacionFiltered: jest.fn(),
   findDtoById: jest.fn(),
@@ -19,10 +27,11 @@ describe('LineaController', () => {
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [LineaController],
-      providers: [
-        { provide: LineaService, useValue: mockLineaService },
-      ],
-    }).compile();
+      providers: [{ provide: LineaService, useValue: mockLineaService }],
+    })
+      .overrideGuard(AuthGuard)
+      .useValue({ canActivate: jest.fn(() => true) })
+      .compile();
 
     controller = module.get<LineaController>(LineaController);
   });
