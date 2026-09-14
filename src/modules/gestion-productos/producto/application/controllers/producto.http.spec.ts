@@ -1,13 +1,23 @@
-import { INestApplication, ValidationPipe } from '@nestjs/common';
+import {
+  INestApplication,
+  NotFoundException,
+  ValidationPipe,
+} from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import * as request from 'supertest';
 import { AuthGuard } from 'src/modules/gestion-usuario/auth/auth.guard';
+import { GlobalExceptionFilter } from 'src/modules/common/filters/global-exception.filters';
+import { StockNegativoException } from 'src/modules/common/exceptions/stock-negativo.exception';
 import { ProductoController } from './producto.controller';
 import { ProductoService } from '../services/producto.service';
 
 describe('ProductoController HTTP', () => {
   let app: INestApplication;
-  const productoService = { create: jest.fn(), update: jest.fn() };
+  const productoService = {
+    create: jest.fn(),
+    update: jest.fn(),
+    ajustarStockManual: jest.fn(),
+  };
 
   const productoValido = {
     denominacion: 'producto de prueba',
@@ -23,6 +33,10 @@ describe('ProductoController HTTP', () => {
   beforeEach(async () => {
     productoService.create.mockResolvedValue({ mensaje: 'Producto creada.' });
     productoService.update.mockResolvedValue({ mensaje: 'Producto editada.' });
+    productoService.ajustarStockManual.mockResolvedValue({
+      message: 'Stock ajustado para "producto de prueba"',
+      stockActual: 12,
+    });
     const module = await Test.createTestingModule({
       controllers: [ProductoController],
       providers: [{ provide: ProductoService, useValue: productoService }],
@@ -39,6 +53,7 @@ describe('ProductoController HTTP', () => {
         forbidNonWhitelisted: true,
       }),
     );
+    app.useGlobalFilters(new GlobalExceptionFilter());
     await app.init();
   });
 
@@ -110,5 +125,58 @@ describe('ProductoController HTTP', () => {
       expect.arrayContaining([expect.stringContaining('precio')]),
     );
     expect(productoService.update).not.toHaveBeenCalled();
+  });
+
+  it('ajusta stock mediante el caso de uso y devuelve el stock resultante', async () => {
+    const ajuste = {
+      cantidad: 2,
+      motivo: '  Recuento de inventario  ',
+      usuarioId: 1,
+    };
+
+    const response = await request(app.getHttpServer())
+      .post('/producto/1/ajustar-manual')
+      .send(ajuste)
+      .expect(200);
+
+    expect(response.body).toEqual({
+      message: 'Stock ajustado para "producto de prueba"',
+      stockActual: 12,
+    });
+    expect(productoService.ajustarStockManual).toHaveBeenCalledWith(1, {
+      ...ajuste,
+      motivo: 'Recuento de inventario',
+    });
+  });
+
+  it('rechaza un ajuste manual sin motivo', async () => {
+    await request(app.getHttpServer())
+      .post('/producto/1/ajustar-manual')
+      .send({ cantidad: 2, usuarioId: 1 })
+      .expect(400);
+
+    expect(productoService.ajustarStockManual).not.toHaveBeenCalled();
+  });
+
+  it('expone 404 cuando el producto no existe', async () => {
+    productoService.ajustarStockManual.mockRejectedValueOnce(
+      new NotFoundException('Producto con ID 999 no encontrado'),
+    );
+
+    await request(app.getHttpServer())
+      .post('/producto/999/ajustar-manual')
+      .send({ cantidad: 2, motivo: 'Recuento de inventario', usuarioId: 1 })
+      .expect(404);
+  });
+
+  it('expone 409 cuando el ajuste viola la invariante de stock', async () => {
+    productoService.ajustarStockManual.mockRejectedValueOnce(
+      new StockNegativoException(-8),
+    );
+
+    await request(app.getHttpServer())
+      .post('/producto/1/ajustar-manual')
+      .send({ cantidad: -20, motivo: 'Recuento de inventario', usuarioId: 1 })
+      .expect(409);
   });
 });

@@ -11,6 +11,8 @@ import {
   Query,
   UsePipes,
   UseGuards,
+  HttpCode,
+  HttpStatus,
 } from '@nestjs/common';
 
 import { CreateProductoDto } from '../../dto/create-producto.dto';
@@ -20,6 +22,12 @@ import { AuthGuard } from 'src/modules/gestion-usuario/auth/auth.guard';
 import { Roles } from 'src/modules/gestion-usuario/auth/roles.decorator';
 import {
   ApiOkResponse,
+  ApiBadRequestResponse,
+  ApiBody,
+  ApiConflictResponse,
+  ApiNotFoundResponse,
+  ApiOperation,
+  ApiParam,
   ApiTags,
 } from '@nestjs/swagger';
 import { NormalizeCodigoProveedorPipe } from 'src/modules/common/pipes/normalize-codigo-proveedor.pipe';
@@ -31,8 +39,10 @@ import { NormalizeDenominacionSearchPipe } from 'src/modules/common/pipes/normal
 import { DenominacionBusquedaDto } from 'src/modules/common/dto/denominacion-busqueda.dto';
 import { SearchProductoRapidoDto } from '../../dto/search-producto-rapido.dto';
 import { ProductoService } from '../services/producto.service';
-import { AjustarStockManualDto } from '../../dto/ajustar-stock-manual.dto';
-
+import {
+  AjustarStockManualDto,
+  AjustarStockManualResponseDto,
+} from '../../dto/ajustar-stock-manual.dto';
 
 @ApiTags('Gestion Productos')
 @Controller('producto')
@@ -51,7 +61,7 @@ export class ProductoController {
     this.logger.log(`Creando un nuevo ${this.ENTITY_NAME}...`);
     return this.service.create(createDto);
   }
-  
+
   @Get('find-all-for-marcas/select')
   @Roles(
     'Root',
@@ -66,7 +76,6 @@ export class ProductoController {
     const { denominacion = '' } = dto;
     return this.service.findAllForMarcas(denominacion);
   }
-
 
   @Get('find-all-for-lineas/select')
   @Roles(
@@ -141,7 +150,6 @@ export class ProductoController {
     return this.service.buscarMarcaDesdeProducto(id);
   }
 
-
   @Get('linea/:id')
   @Roles('Root', 'Administrador', 'Empleado')
   async geLineaDelProducto(@Param('id', ParseIntPipe) id: number) {
@@ -180,7 +188,6 @@ export class ProductoController {
     return this.service.remove(id, usuarioId);
   }
 
-
   @Get(':id/audit')
   @Roles('Root', 'Administrador', 'Empleado')
   @ApiOkResponse({
@@ -193,13 +200,37 @@ export class ProductoController {
     const data = await this.service.findByIdConAuditoria(id);
     return data;
   }
-  
+
   @Post(':id/ajustar-manual')
+  @HttpCode(HttpStatus.OK)
   @Roles('Root', 'Administrador')
+  @ApiOperation({
+    summary: 'Ajustar manualmente el stock de un producto',
+    description:
+      'Registra un movimiento de ajuste manual y actualiza el stock en una única transacción.',
+  })
+  @ApiParam({
+    name: 'id',
+    type: Number,
+    description: 'ID del producto a ajustar.',
+  })
+  @ApiBody({ type: AjustarStockManualDto })
+  @ApiOkResponse({
+    description: 'Ajuste aplicado y movimiento de stock registrado.',
+    type: AjustarStockManualResponseDto,
+  })
+  @ApiBadRequestResponse({
+    description: 'Solicitud inválida, incluyendo motivo o cantidad inválidos.',
+  })
+  @ApiNotFoundResponse({ description: 'Producto o usuario inexistente.' })
+  @ApiConflictResponse({
+    description:
+      'El ajuste dejaría el stock del producto en un valor negativo.',
+  })
   async ajustarManual(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: AjustarStockManualDto,
-    ) {
+  ) {
     return this.service.ajustarStockManual(id, dto);
   }
 }
