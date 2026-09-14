@@ -10,6 +10,9 @@ import {
   IsInt,
   IsEnum,
   Min,
+  ValidateIf,
+  IsPositive,
+  Max,
 } from 'class-validator';
 import { AlicuotaIva } from 'src/modules/organizacion/enums/alicuota-iva.enum';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
@@ -55,10 +58,15 @@ export class CreateProductoDto {
   @IsBoolean()
   utilizaStockMinimo: boolean;
 
-  @IsOptional()
+  @ValidateIf((o) => o.utilizaStockMinimo === true)
+  @IsNotEmpty({ message: 'El stock mínimo es obligatorio.' })
   @IsInt()
+  @IsPositive({ message: 'El stock mínimo debe ser mayor a 0.' })
   stockMinimo?: number;
 
+  // Decisión de negocio (PA-011): el stock de este negocio siempre es en
+  // unidades enteras, nunca fraccionario (aunque la columna en base de
+  // datos sea decimal). No cambiar a @IsNumber() sin volver a confirmarlo.
   @IsOptional()
   @IsInt()
   stock?: number;
@@ -93,11 +101,13 @@ export class CreateProductoDto {
   @ApiPropertyOptional({
     example: 20,
     description:
-      'Margen particular sobre el costo. Si se omite, se aplica el margen general del 15%.',
-    minimum: 0,
+      'Cantidad de unidades por pack. Obligatoria si utilizaPack=true.',
+    minimum: 1,
   })
-  @IsOptional()
+  @ValidateIf((o) => o.utilizaPack === true)
+  @IsNotEmpty({ message: 'La cantidad por pack es obligatoria.' })
   @IsInt()
+  @IsPositive({ message: 'La cantidad por pack debe ser mayor a 0.' })
   cantidadPorPack?: number;
 
   @IsOptional()
@@ -114,6 +124,12 @@ export class CreateProductoDto {
   marcaId: number;
 
 
+  @ApiPropertyOptional({
+  example: 20,
+  description:
+    'Margen particular sobre el costo. Si se omite, se aplica el margen general del 15%.',
+  minimum: 0,
+  })
   @IsOptional()
   @IsNumber()
   @Min(0, { message: 'El margen debe ser un número no negativo.' })

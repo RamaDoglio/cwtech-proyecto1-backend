@@ -1,6 +1,6 @@
 import { OmitType, PartialType } from '@nestjs/mapped-types';
 import { CreateProveedorDto } from './create-proveedor.dto';
-import { IsInt, IsNotEmpty, IsOptional, IsString, MaxLength } from 'class-validator';
+import { IsInt, IsNotEmpty, IsOptional, IsString, MaxLength, ValidateNested } from 'class-validator';
 import { Transform, Type } from 'class-transformer';
 import { UpdateDomicilioDto } from 'src/modules/gutil/domicilio/dto/update-domicilio.dto';
 import { CondicionIvaValidable } from 'src/modules/gutil/condicion-iva/domain/interfaces/condicion-iva-validable.inteface';
@@ -18,6 +18,7 @@ export class UpdateProveedorDto extends PartialType(CreateProveedorDtoSinDomicil
   condicionIvaId: number;
 
   @IsNotEmpty({ message: 'El domicilio es obligatorio.' })
+  @ValidateNested()
   @Type(() => UpdateDomicilioDto)
   domicilio: UpdateDomicilioDto;
 
