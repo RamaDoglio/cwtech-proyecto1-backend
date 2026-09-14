@@ -178,7 +178,7 @@ export class Producto {
   @OneToMany(() => MovimientoStock, (movimiento) => movimiento.producto, {
     eager: false,
   })
-  movimientos: MovimientoStock[] = [];
+  movimientos: MovimientoStock[];
 
   // ============================================================
   // Ajuste de stock — invariante del agregado Producto
@@ -207,7 +207,7 @@ export class Producto {
       usuarioId,
     );
 
-    this.movimientos.push(movimiento);
+    (this.movimientos ??= []).push(movimiento);
 
     this.stock = nuevoStock;
 
