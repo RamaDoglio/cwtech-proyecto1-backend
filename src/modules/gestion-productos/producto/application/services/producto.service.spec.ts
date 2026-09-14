@@ -76,6 +76,7 @@ const mockUsuarioValidator = {
 const mockProductoDeletePolicy = {};
 const mockEntityManager = {
   findOne: jest.fn(),
+  update: jest.fn(),
   save: jest.fn(),
 };
 const mockDataSource = {
@@ -128,9 +129,8 @@ describe('ProductoService', () => {
     });
     const error = new Error('No se pudo guardar el movimiento');
     mockEntityManager.findOne.mockResolvedValue(producto);
-    mockEntityManager.save
-      .mockResolvedValueOnce(producto)
-      .mockRejectedValueOnce(error);
+    mockEntityManager.update.mockResolvedValue({ affected: 1 });
+    mockEntityManager.save.mockRejectedValueOnce(error);
     mockDataSource.transaction.mockImplementation(async (callback) =>
       callback(mockEntityManager),
     );
@@ -138,13 +138,10 @@ describe('ProductoService', () => {
     await expect(service.incrementarStock(1, 5)).rejects.toThrow(error);
 
     expect(mockDataSource.transaction).toHaveBeenCalledTimes(1);
-    expect(mockEntityManager.save).toHaveBeenNthCalledWith(
-      1,
-      Producto,
-      producto,
-    );
-    expect(mockEntityManager.save).toHaveBeenNthCalledWith(
-      2,
+    expect(mockEntityManager.update).toHaveBeenCalledWith(Producto, 1, {
+      stock: 15,
+    });
+    expect(mockEntityManager.save).toHaveBeenCalledWith(
       MovimientoStock,
       expect.objectContaining({ productoId: 1, cantidad: 5 }),
     );
@@ -158,6 +155,7 @@ describe('ProductoService', () => {
         movimientos: [],
       });
       mockEntityManager.findOne.mockResolvedValueOnce(producto);
+      mockEntityManager.update.mockResolvedValue({ affected: 1 });
       mockEntityManager.save.mockResolvedValue(producto);
       return callback(mockEntityManager);
     });

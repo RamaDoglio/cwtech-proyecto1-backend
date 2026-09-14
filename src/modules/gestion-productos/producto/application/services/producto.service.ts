@@ -374,7 +374,7 @@ export class ProductoService {
         usuarioId,
       );
 
-      await manager.save(Producto, producto);
+      await manager.update(Producto, producto.id, { stock: producto.stock });
       await manager.save(MovimientoStock, movimiento);
 
       return { stock: producto.stock, denominacion: producto.denominacion };
