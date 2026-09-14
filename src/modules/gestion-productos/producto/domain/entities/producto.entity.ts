@@ -6,7 +6,8 @@ import {
   UpdateDateColumn,
   ManyToOne,
   Index,
-  JoinColumn, OneToMany
+  JoinColumn,
+  OneToMany,
 } from 'typeorm';
 import { Linea } from '../../../linea/domain/entities/linea.entity';
 import { Marca } from '../../../marca/domain/entities/marca.entity';
@@ -18,7 +19,10 @@ import { MonetarioColumn } from 'src/modules/common/decorators/monetario-column.
 import { CantidadColumn } from 'src/modules/common/decorators/cantidad-column.decorator';
 import { PorcentajeColumn } from 'src/modules/common/decorators/porcentaje-column.decorator';
 import { Proveedor } from 'src/modules/organizacion/proveedor/domain/entities/proveedor.entity';
-import { MovimientoStock, TipoMovimientoStock } from './movimiento-stock.entity';
+import {
+  MovimientoStock,
+  TipoMovimientoStock,
+} from './movimiento-stock.entity';
 import { StockNegativoException } from '../../../../common/exceptions/stock-negativo.exception';
 
 @Entity('producto')
@@ -103,7 +107,6 @@ export class Producto {
   @Column({ type: 'timestamp', nullable: true })
   fechaCostoDolar?: Date;
 
-
   @Column('boolean', { default: false })
   destacado?: boolean;
 
@@ -135,7 +138,6 @@ export class Producto {
   @JoinColumn({ name: 'usuario_deleted_id' })
   usuarioDeleted: Usuario;
 
-
   // ========== LINEA ==========
   @ManyToOne(() => Linea, (linea) => linea.productos)
   @JoinColumn({ name: 'linea_id' })
@@ -144,15 +146,13 @@ export class Producto {
   @Column({ type: 'int', nullable: true })
   lineaId?: number;
 
-
- // ==========  MARCA ==========
+  // ==========  MARCA ==========
   @ManyToOne(() => Marca, (marca) => marca.productos)
   @JoinColumn({ name: 'marca_id' })
   marca: Marca;
 
   @Column({ type: 'int', nullable: true })
   marcaId?: number;
-
 
   @Column({ default: false })
   utilizaPack: boolean;
@@ -163,13 +163,11 @@ export class Producto {
   @Column({ type: 'text', nullable: true })
   imagen?: string;
 
-
   @Column({ type: 'text', nullable: true })
   ubicacion?: string;
 
   @ManyToOne(() => Producto, (producto) => producto.productosOperacion)
   productosOperacion: ProductoOperacion;
-
 
   @Column({ type: 'int', default: 0 })
   sistema: number;
@@ -180,10 +178,9 @@ export class Producto {
   // ========= Movimiento-Stock =============
 
   @OneToMany(() => MovimientoStock, (movimiento) => movimiento.producto, {
-    cascade: true,
     eager: false,
   })
-  movimientos: MovimientoStock[];
+  movimientos: MovimientoStock[] = [];
 
   // ============================================================
   // Ajuste de stock — invariante del agregado Producto
@@ -193,7 +190,7 @@ export class Producto {
     tipo: TipoMovimientoStock,
     motivo?: string,
     usuarioId?: number,
-  ): void {
+  ): MovimientoStock {
     // Invariante 1: la cantidad no puede ser 0 (delegada a MovimientoStock.crear)
     // Invariante 2: ajuste manual requiere motivo (delegada a MovimientoStock.crear)
 
@@ -215,5 +212,7 @@ export class Producto {
     this.movimientos.push(movimiento);
 
     this.stock = nuevoStock;
+
+    return movimiento;
   }
 }
