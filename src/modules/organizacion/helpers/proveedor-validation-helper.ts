@@ -60,7 +60,7 @@ export class ProveedorValidationHelper {
 
     const existente = await this.proveedorRepository.findByCuit(cuit.trim());
     if (existente && existente.id !== idProveedorActual) {
-      throw new BadRequestException(`Ya existe un proveedor con CUIT ${cuit}`);
+      throw new ConflictException(`Ya existe un proveedor con CUIT ${cuit}`);  // ← cambio
     }
   }
 
