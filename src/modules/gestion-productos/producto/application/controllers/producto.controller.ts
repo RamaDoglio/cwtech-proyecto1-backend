@@ -39,10 +39,10 @@ import { NormalizeDenominacionSearchPipe } from 'src/modules/common/pipes/normal
 import { DenominacionBusquedaDto } from 'src/modules/common/dto/denominacion-busqueda.dto';
 import { SearchProductoRapidoDto } from '../../dto/search-producto-rapido.dto';
 import { ProductoService } from '../services/producto.service';
-import {
-  AjustarStockManualDto,
-  AjustarStockManualResponseDto,
-} from '../../dto/ajustar-stock-manual.dto';
+import { AjustarStockManualDto} from '../../dto/ajustar-stock-manual.dto';
+import { CambioPreciosMasivoDto } from '../../dto/cambio-precios-masivo.dto';
+import { AjustarStockManualResponseDto} from '../../dto/ajustar-stock-manual.dto';
+
 
 @ApiTags('Gestion Productos')
 @Controller('producto')
@@ -120,15 +120,15 @@ export class ProductoController {
   async search(@Query() dto: SearchProductoPaginationWithDto) {
     const {
       denominacion = '',
-      codProveedorExacto,
-      codigoProveedor,
-      codigoReferencia,
+      codProveedorExacto = false,
+      codigoProveedor = '',
+      codigoReferencia = '',
       marcaId,
       lineaId,
       proveedorId,
-      conStock,
-      skip,
-      take,
+      conStock = false,
+      skip = 0,
+      take = 10,
     } = dto;
     return this.service.findBy(
       denominacion,
@@ -154,6 +154,20 @@ export class ProductoController {
   @Roles('Root', 'Administrador', 'Empleado')
   async geLineaDelProducto(@Param('id', ParseIntPipe) id: number) {
     return this.service.buscarLineaDesdeProducto(id);
+  }
+
+  @Post('cambio-precios-masivo/preview')
+  @Roles('Root', 'Administrador', 'Admin', 'Vendedor')
+  async previewCambioMasivo(@Body() dto: CambioPreciosMasivoDto) {
+    this.logger.log(`Calculando preview de ajuste masivo para ${dto.alcance}`);
+    return this.service.previewCambioMasivo(dto);
+  }
+
+  @Post('ajustar-precios-masivo')
+  @Roles('Root', 'Administrador', 'Admin', 'Vendedor')
+  async aplicarCambioMasivo(@Body() dto: CambioPreciosMasivoDto) {
+    this.logger.log(`Aplicando ajuste masivo de precios para ${dto.alcance}`);
+    return this.service.aplicarCambioMasivo(dto);
   }
 
   @Get(':id')
