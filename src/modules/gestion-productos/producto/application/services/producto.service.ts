@@ -2,7 +2,7 @@ import {
   forwardRef,
   Inject,
   Injectable,
-  InternalServerErrorException,
+  ConflictException,
   Logger,
   NotFoundException,
 } from '@nestjs/common';
@@ -22,10 +22,10 @@ import { AjustarStockManualDto } from '../../dto/ajustar-stock-manual.dto';
 import { ProductoMapper } from '../../mappers/producto.mapper';
 import { LineaService } from 'src/modules/gestion-productos/linea/application/services/linea.service';
 import { MarcaService } from 'src/modules/gestion-productos/marca/application/services/marca.service';
-import { ProductoIntrinsicValidationService } from '../../domain/services/producto-intrinsic-validation.service.ts';
-import { ProductoValidationService } from '../../domain/services/producto-validation.service.ts';
-import { ProductoRelatedEntitiesValidator } from '../../infraestructure/validators/producto-related-entities.validator.ts';
-import { ProductoUniquenessValidator } from '../../infraestructure/validators/producto-uniqueness.validator.ts';
+import { ProductoIntrinsicValidationService } from '../../domain/services/producto-intrinsic-validation.service';
+import { ProductoValidationService } from '../../domain/services/producto-validation.service';
+import { ProductoRelatedEntitiesValidator } from '../../infraestructure/validators/producto-related-entities.validator';
+import { ProductoUniquenessValidator } from '../../infraestructure/validators/producto-uniqueness.validator';
 import { UsuarioValidator } from 'src/modules/common/utils/validation/usuario-validator';
 import { ProductoDeletePolicy } from '../policies/producto-delete.policy';
 import { TipoMovimientoStock } from '../../domain/entities/movimiento-stock.entity';
@@ -33,6 +33,7 @@ import { CambioPreciosMasivoDto } from '../../dto/cambio-precios-masivo.dto';
 import { PoliticaPrecio } from '../../domain/services/politica-precio.service';
 import { CambioPreciosMasivoHistorial } from '../../domain/entities/cambio-precio-masivo-historial.entity';
 import { AlcanceAjustePrecio } from '../../enums/alcance-ajuste-precio.enum';
+import { MovimientoStock } from '../../domain/entities/movimiento-stock.entity';
 import { DataSource } from 'typeorm';
 
 @Injectable()
@@ -144,20 +145,14 @@ export class ProductoService {
     origen?: string,
     usuarioId?: number,
   ): Promise<number> {
-    const producto = await this.repository.findOne(productoId);
-    if (!producto) {
-      throw new NotFoundException(`Producto con ID ${productoId} no encontrado`);
-    }
-
-    producto.ajustarStock(
+    const resultado = await this.ajustarStockEnTransaccion(
+      productoId,
       cantidad,
       TipoMovimientoStock.INGRESO,
       origen,
       usuarioId,
     );
-
-    await this.repository.save(producto);
-    return producto.stock;
+    return resultado.stock;
   }
 
   async decrementarStock(
@@ -166,20 +161,14 @@ export class ProductoService {
     origen?: string,
     usuarioId?: number,
   ): Promise<number> {
-    const producto = await this.repository.findOne(productoId);
-    if (!producto) {
-      throw new NotFoundException(`Producto con ID ${productoId} no encontrado`);
-    }
-
-    producto.ajustarStock(
+    const resultado = await this.ajustarStockEnTransaccion(
+      productoId,
       -cantidad,
       TipoMovimientoStock.EGRESO,
       origen,
       usuarioId,
     );
-
-    await this.repository.save(producto);
-    return producto.stock;
+    return resultado.stock;
   }
 
   async ajustarStockManual(
@@ -188,23 +177,17 @@ export class ProductoService {
   ): Promise<{ message: string; stockActual: number }> {
     await this.usuarioValidator.validarUsuarioExiste(dto.usuarioId);
 
-    const producto = await this.repository.findOne(productoId);
-    if (!producto) {
-      throw new NotFoundException(`Producto con ID ${productoId} no encontrado`);
-    }
-
-    producto.ajustarStock(
+    const resultado = await this.ajustarStockEnTransaccion(
+      productoId,
       dto.cantidad,
       TipoMovimientoStock.AJUSTE_MANUAL,
       dto.motivo,
       dto.usuarioId,
     );
 
-    await this.repository.save(producto);
-
     return {
-      message: `Stock ajustado para "${producto.denominacion}"`,
-      stockActual: producto.stock,
+      message: `Stock ajustado para "${resultado.denominacion}"`,
+      stockActual: resultado.stock,
     };
   }
 
@@ -469,6 +452,39 @@ export class ProductoService {
     return { marca, linea, usuario };
   }
 
+  private async ajustarStockEnTransaccion(
+    productoId: number,
+    cantidad: number,
+    tipo: TipoMovimientoStock,
+    motivo?: string,
+    usuarioId?: number,
+  ): Promise<{ stock: number; denominacion: string }> {
+    return this.dataSource.transaction(async (manager) => {
+      // Serializa ajustes del mismo producto y evita actualizaciones perdidas.
+      const producto = await manager.findOne(Producto, {
+        where: { id: productoId },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (!producto) {
+        throw new NotFoundException(
+          `Producto con ID ${productoId} no encontrado`,
+        );
+      }
+
+      const movimiento = producto.ajustarStock(
+        cantidad,
+        tipo,
+        motivo,
+        usuarioId,
+      );
+
+      await manager.update(Producto, producto.id, { stock: producto.stock });
+      await manager.save(MovimientoStock, movimiento);
+
+      return { stock: producto.stock, denominacion: producto.denominacion };
+    });
+  }
+
   private async validarYPrepararActualizacion(
     id: number,
     dto: UpdateProductoDto,
@@ -481,7 +497,9 @@ export class ProductoService {
     }
 
     if (productoActual.lineaId == null || productoActual.marcaId == null) {
-      throw new InternalServerErrorException('Producto en estado inválido');
+      throw new ConflictException(
+        `${this.ENTITY_NAME} con ID ${id} en estado inválido: no posee línea o marca.`,
+      );
     }
 
     this.intrinsicValidationService.validarDatosBasicos({

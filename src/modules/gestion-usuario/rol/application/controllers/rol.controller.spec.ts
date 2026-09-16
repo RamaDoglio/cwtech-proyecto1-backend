@@ -1,6 +1,15 @@
+// Mockear @nestjs/mapped-types para evitar el error de ESM/CJS
+jest.mock('@nestjs/mapped-types', () => ({
+  PartialType: () => class {},
+  OmitType: () => class {},
+  IntersectionType: () => class {},
+  PickType: () => class {},
+}));
+
 import { Test, TestingModule } from '@nestjs/testing';
 import { RolController } from './rol.controller';
 import { RolService } from '../services/rol.service';
+import { AuthGuard } from '../../../auth/auth.guard';
 
 const mockRolService = {
   create: jest.fn(),
@@ -18,7 +27,10 @@ describe('RolController', () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [RolController],
       providers: [{ provide: RolService, useValue: mockRolService }],
-    }).compile();
+    })
+      .overrideGuard(AuthGuard)
+      .useValue({ canActivate: jest.fn(() => true) })
+      .compile();
 
     controller = module.get<RolController>(RolController);
   });

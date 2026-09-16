@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, NotImplementedException } from '@nestjs/common';
 import { DomicilioService } from './domicilio.service';
 import { CreateDomicilioDto } from './dto/create-domicilio.dto';
 import { UpdateDomicilioDto } from './dto/update-domicilio.dto';
@@ -10,7 +10,11 @@ export class DomicilioController {
   constructor(private readonly domicilioService: DomicilioService) {}
 
   @Post()
-  create(@Body() createDomicilioDto: CreateDomicilioDto) {
+  create(@Body() _createDomicilioDto: CreateDomicilioDto): never {
+    throw new NotImplementedException(
+      'El alta directa de domicilios no está disponible. ' +
+        'El domicilio se persiste por cascada desde Cliente/Proveedor.',
+    );
   }
 
   @Get()

@@ -25,7 +25,6 @@ import { ConfiguracionSistemaModule } from './modules/gestion-sistema/configurac
 import { CondicionIvaModule } from './modules/gutil/condicion-iva/condicion-iva.module';
 import { EmpresaOperacionModule } from './modules/organizacion/empresa-operacion/empresa-operacion.module';
 import { ClienteOperacionModule } from './modules/organizacion/cliente-operacion/cliente-operacion.module';
-import { ProductoOperacionModule } from './modules/gestion-productos/producto-operacion/producto-operacion.module';
 import { BusquedasModule } from './modules/gestion-documentos/busquedas/busquedas.module';
 
 @Module({
@@ -77,7 +76,6 @@ import { BusquedasModule } from './modules/gestion-documentos/busquedas/busqueda
     ConfiguracionSistemaModule,
     EmpresaOperacionModule,
     ClienteOperacionModule,
-    ProductoOperacionModule,
     BusquedasModule,
   ],
   controllers: [AppController],

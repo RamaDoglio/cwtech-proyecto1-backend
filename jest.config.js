@@ -33,20 +33,6 @@ module.exports = {
   ],
   testPathIgnorePatterns: [
     "/node_modules/",
-    "auth.service.spec.ts",
-    "auth.controller.spec.ts",
-    "marca.controller.spec.ts",
-    "producto.controller.spec.ts",
-    "condicion-iva.controller.spec.ts",
-    "proveedor-operacion.controller.spec.ts",
-    "personal.controller.spec.ts",
-    "linea.controller.spec.ts",
-    "localidad.controller.spec.ts",
-    "provincia.controller.spec.ts",
-    "empresa.controller.spec.ts",
-    "domicilio.controller.spec.ts",
-    "cliente.controller.spec.ts",
-    "rol.controller.spec.ts",
   ], 
 };
   

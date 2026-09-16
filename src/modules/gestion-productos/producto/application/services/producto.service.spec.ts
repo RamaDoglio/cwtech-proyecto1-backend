@@ -5,14 +5,17 @@ import { LineaService } from '../../../linea/application/services/linea.service'
 import { MarcaService } from '../../../marca/application/services/marca.service';
 import { ProveedorService } from '../../../../organizacion/proveedor/application/services/proveedor.service';
 import { UsuarioService } from '../../../../gestion-usuario/usuario/application/services/usuario.service';
-import { ProductoIntrinsicValidationService } from '../../domain/services/producto-intrinsic-validation.service.ts';
-import { ProductoValidationService } from '../../domain/services/producto-validation.service.ts';
-import { ProductoRelatedEntitiesValidator } from '../../infraestructure/validators/producto-related-entities.validator.ts';
-import { ProductoUniquenessValidator } from '../../infraestructure/validators/producto-uniqueness.validator.ts';
+import { ProductoIntrinsicValidationService } from '../../domain/services/producto-intrinsic-validation.service';
+import { ProductoValidationService } from '../../domain/services/producto-validation.service';
+import { ProductoRelatedEntitiesValidator } from '../../infraestructure/validators/producto-related-entities.validator';
+import { ProductoUniquenessValidator } from '../../infraestructure/validators/producto-uniqueness.validator';
 import { UsuarioValidator } from '../../../../common/utils/validation/usuario-validator';
 import { ProductoDeletePolicy } from '../policies/producto-delete.policy';
 import { CreateProductoDto } from '../../dto/create-producto.dto';
 import { UpdateProductoDto } from '../../dto/update-producto.dto';
+import { DataSource } from 'typeorm';
+import { Producto } from '../../domain/entities/producto.entity';
+import { MovimientoStock } from '../../domain/entities/movimiento-stock.entity';
 
 // ==================== MOCKS ====================
 // Cada dependencia debe tener al menos los métodos que el servicio invoca.
@@ -71,10 +74,19 @@ const mockUsuarioValidator = {
 };
 
 const mockProductoDeletePolicy = {};
+const mockEntityManager = {
+  findOne: jest.fn(),
+  update: jest.fn(),
+  save: jest.fn(),
+};
+const mockDataSource = {
+  transaction: jest.fn(),
+};
 describe('ProductoService', () => {
   let service: ProductoService;
 
   beforeEach(async () => {
+    jest.clearAllMocks();
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         ProductoService,
@@ -83,12 +95,22 @@ describe('ProductoService', () => {
         { provide: MarcaService, useValue: mockMarcaService },
         { provide: ProveedorService, useValue: mockProveedorService },
         { provide: UsuarioService, useValue: mockUsuarioService },
-        { provide: ProductoIntrinsicValidationService, useValue: mockIntrinsicValidationService },
+        {
+          provide: ProductoIntrinsicValidationService,
+          useValue: mockIntrinsicValidationService,
+        },
         { provide: ProductoValidationService, useValue: mockValidationService },
-        { provide: ProductoRelatedEntitiesValidator, useValue: mockRelatedEntitiesValidator },
-        { provide: ProductoUniquenessValidator, useValue: mockUniquenessValidator },
+        {
+          provide: ProductoRelatedEntitiesValidator,
+          useValue: mockRelatedEntitiesValidator,
+        },
+        {
+          provide: ProductoUniquenessValidator,
+          useValue: mockUniquenessValidator,
+        },
         { provide: UsuarioValidator, useValue: mockUsuarioValidator },
         { provide: ProductoDeletePolicy, useValue: mockProductoDeletePolicy },
+        { provide: DataSource, useValue: mockDataSource },
       ],
     }).compile();
 
@@ -99,11 +121,64 @@ describe('ProductoService', () => {
     expect(service).toBeDefined();
   });
 
-  it('resuelve costo, margen y precio antes de crear el producto', async () => {
-    mockRelatedEntitiesValidator.validarYObtenerEntidadesRelacionadas.mockResolvedValue({
-      marca: { id: 1 },
-      linea: { id: 1 },
+  it('revierte el ajuste completo si falla la persistencia del movimiento', async () => {
+    const producto = Object.assign(new Producto(), {
+      id: 1,
+      stock: 10,
+      movimientos: [],
     });
+    const error = new Error('No se pudo guardar el movimiento');
+    mockEntityManager.findOne.mockResolvedValue(producto);
+    mockEntityManager.update.mockResolvedValue({ affected: 1 });
+    mockEntityManager.save.mockRejectedValueOnce(error);
+    mockDataSource.transaction.mockImplementation(async (callback) =>
+      callback(mockEntityManager),
+    );
+
+    await expect(service.incrementarStock(1, 5)).rejects.toThrow(error);
+
+    expect(mockDataSource.transaction).toHaveBeenCalledTimes(1);
+    expect(mockEntityManager.update).toHaveBeenCalledWith(Producto, 1, {
+      stock: 15,
+    });
+    expect(mockEntityManager.save).toHaveBeenCalledWith(
+      MovimientoStock,
+      expect.objectContaining({ productoId: 1, cantidad: 5 }),
+    );
+  });
+
+  it('bloquea la fila del producto en cada ajuste concurrente', async () => {
+    mockDataSource.transaction.mockImplementation(async (callback) => {
+      const producto = Object.assign(new Producto(), {
+        id: 1,
+        stock: 10,
+        movimientos: [],
+      });
+      mockEntityManager.findOne.mockResolvedValueOnce(producto);
+      mockEntityManager.update.mockResolvedValue({ affected: 1 });
+      mockEntityManager.save.mockResolvedValue(producto);
+      return callback(mockEntityManager);
+    });
+
+    await Promise.all([
+      service.incrementarStock(1, 2),
+      service.decrementarStock(1, 1),
+    ]);
+
+    expect(mockDataSource.transaction).toHaveBeenCalledTimes(2);
+    expect(mockEntityManager.findOne).toHaveBeenCalledWith(Producto, {
+      where: { id: 1 },
+      lock: { mode: 'pessimistic_write' },
+    });
+  });
+
+  it('resuelve costo, margen y precio antes de crear el producto', async () => {
+    mockRelatedEntitiesValidator.validarYObtenerEntidadesRelacionadas.mockResolvedValue(
+      {
+        marca: { id: 1 },
+        linea: { id: 1 },
+      },
+    );
     mockUsuarioValidator.validarUsuarioExiste.mockResolvedValue({ id: 1 });
     mockRepository.save.mockImplementation(async (producto) => producto);
 
@@ -133,10 +208,12 @@ describe('ProductoService', () => {
       marcaId: 1,
       alicuotaIva: 21,
     });
-    mockRelatedEntitiesValidator.validarYObtenerEntidadesRelacionadas.mockResolvedValue({
-      marca: { id: 1 },
-      linea: { id: 1 },
-    });
+    mockRelatedEntitiesValidator.validarYObtenerEntidadesRelacionadas.mockResolvedValue(
+      {
+        marca: { id: 1 },
+        linea: { id: 1 },
+      },
+    );
     mockUsuarioValidator.validarUsuarioExiste.mockResolvedValue({ id: 1 });
     mockRepository.save.mockImplementation(async (producto) => producto);
 
