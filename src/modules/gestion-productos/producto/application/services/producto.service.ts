@@ -2,7 +2,7 @@ import {
   forwardRef,
   Inject,
   Injectable,
-  InternalServerErrorException,
+  ConflictException,
   Logger,
   NotFoundException,
 } from '@nestjs/common';
@@ -22,10 +22,10 @@ import { AjustarStockManualDto } from '../../dto/ajustar-stock-manual.dto';
 import { ProductoMapper } from '../../mappers/producto.mapper';
 import { LineaService } from 'src/modules/gestion-productos/linea/application/services/linea.service';
 import { MarcaService } from 'src/modules/gestion-productos/marca/application/services/marca.service';
-import { ProductoIntrinsicValidationService } from '../../domain/services/producto-intrinsic-validation.service.ts';
-import { ProductoValidationService } from '../../domain/services/producto-validation.service.ts';
-import { ProductoRelatedEntitiesValidator } from '../../infraestructure/validators/producto-related-entities.validator.ts';
-import { ProductoUniquenessValidator } from '../../infraestructure/validators/producto-uniqueness.validator.ts';
+import { ProductoIntrinsicValidationService } from '../../domain/services/producto-intrinsic-validation.service';
+import { ProductoValidationService } from '../../domain/services/producto-validation.service';
+import { ProductoRelatedEntitiesValidator } from '../../infraestructure/validators/producto-related-entities.validator';
+import { ProductoUniquenessValidator } from '../../infraestructure/validators/producto-uniqueness.validator';
 import { UsuarioValidator } from 'src/modules/common/utils/validation/usuario-validator';
 import { ProductoDeletePolicy } from '../policies/producto-delete.policy';
 import { TipoMovimientoStock } from '../../domain/entities/movimiento-stock.entity';
@@ -393,7 +393,9 @@ export class ProductoService {
     }
 
     if (productoActual.lineaId == null || productoActual.marcaId == null) {
-      throw new InternalServerErrorException('Producto en estado inválido');
+      throw new ConflictException(
+        `${this.ENTITY_NAME} con ID ${id} en estado inválido: no posee línea o marca.`,
+      );
     }
 
     this.intrinsicValidationService.validarDatosBasicos({

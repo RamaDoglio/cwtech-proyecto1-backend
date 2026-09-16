@@ -5,10 +5,10 @@ import { LineaService } from '../../../linea/application/services/linea.service'
 import { MarcaService } from '../../../marca/application/services/marca.service';
 import { ProveedorService } from '../../../../organizacion/proveedor/application/services/proveedor.service';
 import { UsuarioService } from '../../../../gestion-usuario/usuario/application/services/usuario.service';
-import { ProductoIntrinsicValidationService } from '../../domain/services/producto-intrinsic-validation.service.ts';
-import { ProductoValidationService } from '../../domain/services/producto-validation.service.ts';
-import { ProductoRelatedEntitiesValidator } from '../../infraestructure/validators/producto-related-entities.validator.ts';
-import { ProductoUniquenessValidator } from '../../infraestructure/validators/producto-uniqueness.validator.ts';
+import { ProductoIntrinsicValidationService } from '../../domain/services/producto-intrinsic-validation.service';
+import { ProductoValidationService } from '../../domain/services/producto-validation.service';
+import { ProductoRelatedEntitiesValidator } from '../../infraestructure/validators/producto-related-entities.validator';
+import { ProductoUniquenessValidator } from '../../infraestructure/validators/producto-uniqueness.validator';
 import { UsuarioValidator } from '../../../../common/utils/validation/usuario-validator';
 import { ProductoDeletePolicy } from '../policies/producto-delete.policy';
 import { CreateProductoDto } from '../../dto/create-producto.dto';
