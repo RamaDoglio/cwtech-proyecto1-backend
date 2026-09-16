@@ -29,6 +29,11 @@ import { ProductoUniquenessValidator } from '../../infraestructure/validators/pr
 import { UsuarioValidator } from 'src/modules/common/utils/validation/usuario-validator';
 import { ProductoDeletePolicy } from '../policies/producto-delete.policy';
 import { TipoMovimientoStock } from '../../domain/entities/movimiento-stock.entity';
+import { CambioPreciosMasivoDto } from '../../dto/cambio-precios-masivo.dto';
+import { PoliticaPrecio } from '../../domain/services/politica-precio.service';
+import { CambioPreciosMasivoHistorial } from '../../domain/entities/cambio-precio-masivo-historial.entity';
+import { AlcanceAjustePrecio } from '../../enums/alcance-ajuste-precio.enum';
+import { DataSource } from 'typeorm';
 
 @Injectable()
 export class ProductoService {
@@ -39,6 +44,7 @@ export class ProductoService {
     @Inject('IProductoRepository')
     private readonly repository: IProductoRepository,
     private readonly lineaService: LineaService,
+    private readonly dataSource: DataSource,
 
     @Inject(forwardRef(() => MarcaService))
     private readonly marcaService: MarcaService,
@@ -326,6 +332,106 @@ export class ProductoService {
 
   async findByIds(ids: number[]): Promise<Producto[]> {
     return this.repository.findByIds(ids);
+  }
+
+  async previewCambioMasivo(dto: CambioPreciosMasivoDto) {
+    await this.usuarioValidator.validarUsuarioExiste(dto.usuarioId);
+
+    const productos = await this.repository.findActivosParaAjustePrecio(
+      dto.alcance === AlcanceAjustePrecio.LINEA ? dto.lineaId : undefined,
+    );
+
+    if (productos.length === 0) {
+      throw new NotFoundException(
+        dto.alcance === AlcanceAjustePrecio.LINEA
+          ? `No hay productos activos para la línea ${dto.lineaId}.`
+          : 'No hay productos activos para aplicar el cambio masivo.',
+      );
+    }
+
+    const items = productos.map((producto) => {
+      const precioActual = Number(producto.precio ?? 0);
+
+      try {
+        const precioNuevo = PoliticaPrecio.aplicarAjuste(
+          precioActual,
+          dto.tipo,
+          dto.valor,
+        );
+
+        return {
+          productoId: producto.id,
+          denominacion: producto.denominacion,
+          precioActual,
+          precioNuevo,
+          valido: true,
+        };
+      } catch {
+        return {
+          productoId: producto.id,
+          denominacion: producto.denominacion,
+          precioActual,
+          precioNuevo: null,
+          valido: false,
+        };
+      }
+    });
+
+    return {
+      items,
+      cantidadTotal: items.length,
+      cantidadInvalidos: items.filter((item) => !item.valido).length,
+    };
+  }
+
+  async aplicarCambioMasivo(
+    dto: CambioPreciosMasivoDto,
+  ): Promise<{ message: string; cantidadProductosAfectados: number }> {
+    await this.usuarioValidator.validarUsuarioExiste(dto.usuarioId);
+
+    const productos = await this.repository.findActivosParaAjustePrecio(
+      dto.alcance === AlcanceAjustePrecio.LINEA ? dto.lineaId : undefined,
+    );
+
+    if (productos.length === 0) {
+      throw new NotFoundException(
+        dto.alcance === AlcanceAjustePrecio.LINEA
+          ? `No hay productos activos para la línea ${dto.lineaId}.`
+          : 'No hay productos activos para aplicar el cambio masivo.',
+      );
+    }
+
+    for (const producto of productos) {
+      const precioActual = Number(producto.precio ?? 0);
+      const nuevoPrecio = PoliticaPrecio.aplicarAjuste(
+        precioActual,
+        dto.tipo,
+        dto.valor,
+      );
+
+      producto.precio = nuevoPrecio;
+      await this.repository.save(producto);
+    }
+
+    const historialRepository = this.dataSource.getRepository(
+      CambioPreciosMasivoHistorial,
+    );
+
+    await historialRepository.save(
+      historialRepository.create({
+        tipo: dto.tipo,
+        valor: dto.valor,
+        alcance: dto.alcance,
+        lineaId: dto.lineaId,
+        cantidadProductosAfectados: productos.length,
+        usuarioId: dto.usuarioId,
+      }),
+    );
+
+    return {
+      message: `Se aplicó el ajuste a ${productos.length} productos.`,
+      cantidadProductosAfectados: productos.length,
+    };
   }
 
   // ============================================================

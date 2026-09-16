@@ -14,10 +14,9 @@ async function bootstrap() {
       transform: true, // Convierte el cuerpo a la clase del DTO
       whitelist: true, // Elimina propiedades no declaradas en el DTO
       forbidNonWhitelisted: true, // Lanza error si se reciben propiedades no permitidas
-      /*
       transformOptions: {
         enableImplicitConversion: true,
-      },*/
+      },
     }),
   );
 

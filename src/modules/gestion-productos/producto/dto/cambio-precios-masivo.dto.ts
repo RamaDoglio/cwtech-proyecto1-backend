@@ -7,6 +7,7 @@ import { AlcanceAjustePrecio } from '../enums/alcance-ajuste-precio.enum';
 export class CambioPreciosMasivoDto {
   @ApiProperty({ enum: TipoAumento, example: TipoAumento.PORCENTAJE })
   @IsEnum(TipoAumento)
+  @Type(() => Number)
   tipo: TipoAumento;
 
   @ApiProperty({
@@ -30,4 +31,9 @@ export class CambioPreciosMasivoDto {
   @IsInt()
   @Type(() => Number)
   lineaId?: number;
+
+  @ApiProperty({ example: 1, description: 'ID del usuario que ejecuta el cambio masivo' })
+  @IsInt()
+  @Type(() => Number)
+  usuarioId: number;
 }

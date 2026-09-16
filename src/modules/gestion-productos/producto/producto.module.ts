@@ -20,10 +20,15 @@ import { ProductoRelatedEntitiesValidator } from './infraestructure/validators/p
 import { ProductoValidationService } from './domain/services/producto-validation.service.ts';
 import { ProductoIntrinsicValidationService } from './domain/services/producto-intrinsic-validation.service.ts';
 import { ProductoDeletePolicy } from './application/policies/producto-delete.policy';
+import { CambioPreciosMasivoHistorial } from './domain/entities/cambio-precio-masivo-historial.entity';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Producto, MovimientoStock]), // ✅ uno solo, con ambos
+    TypeOrmModule.forFeature([
+      Producto,
+      MovimientoStock,
+      CambioPreciosMasivoHistorial,
+    ]),
     CommonModule,
     forwardRef(() => LineaModule),
     forwardRef(() => MarcaModule),

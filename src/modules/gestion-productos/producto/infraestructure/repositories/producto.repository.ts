@@ -71,6 +71,10 @@ export class ProductoRepository implements IProductoRepository {
     return this.persistence.findByIds(ids);
   }
 
+  findActivosParaAjustePrecio(lineaId?: number): Promise<Producto[]> {
+    return this.persistence.findActivosParaAjustePrecio(lineaId);
+  }
+
   // ============================================================
   // Consultas paginadas
   // ============================================================
