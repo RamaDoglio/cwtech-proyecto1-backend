@@ -42,6 +42,11 @@ import { ProductoService } from '../services/producto.service';
 import { AjustarStockManualDto} from '../../dto/ajustar-stock-manual.dto';
 import { CambioPreciosMasivoDto } from '../../dto/cambio-precios-masivo.dto';
 import { AjustarStockManualResponseDto} from '../../dto/ajustar-stock-manual.dto';
+import {
+  CambiarPrecioDto,
+  CambiarPrecioResponseDto,
+} from '../../dto/cambiar-precio.dto';
+import { SearchHistorialPrecioDto } from '../../dto/search-historial-precio.dto';
 
 
 @ApiTags('Gestion Productos')
@@ -246,5 +251,52 @@ export class ProductoController {
     @Body() dto: AjustarStockManualDto,
   ) {
     return this.service.ajustarStockManual(id, dto);
+  }
+
+  @Post(':id/cambiar-precio')
+  @HttpCode(HttpStatus.OK)
+  @Roles('Root', 'Administrador')
+  @ApiOperation({
+    summary: 'Cambiar el precio de un producto con motivo',
+    description:
+      'Actualiza el precio de venta y registra el historial (precio anterior, nuevo, fecha, motivo) en una única transacción.',
+  })
+  @ApiParam({
+    name: 'id',
+    type: Number,
+    description: 'ID del producto a modificar.',
+  })
+  @ApiBody({ type: CambiarPrecioDto })
+  @ApiOkResponse({
+    description: 'Precio actualizado y registro de historial creado.',
+    type: CambiarPrecioResponseDto,
+  })
+  @ApiBadRequestResponse({
+    description: 'Solicitud inválida: precio menor o igual a 0, o motivo faltante.',
+  })
+  @ApiNotFoundResponse({ description: 'Producto o usuario inexistente.' })
+  async cambiarPrecio(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: CambiarPrecioDto,
+  ): Promise<CambiarPrecioResponseDto> {
+    return this.service.cambiarPrecio(id, dto);
+  }
+
+  @Get(':id/historial-precios')
+  @Roles('Root', 'Administrador')
+  @ApiOperation({
+    summary: 'Consultar el historial de cambios de precio de un producto',
+  })
+  @ApiParam({
+    name: 'id',
+    type: Number,
+    description: 'ID del producto a consultar.',
+  })
+  @ApiNotFoundResponse({ description: 'Producto inexistente.' })
+  async findHistorialPrecios(
+    @Param('id', ParseIntPipe) id: number,
+    @Query() dto: SearchHistorialPrecioDto,
+  ) {
+    return this.service.findHistorialPrecios(id, dto.skip, dto.take);
   }
 }

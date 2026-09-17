@@ -21,6 +21,7 @@ import { ProductoValidationService } from './domain/services/producto-validation
 import { ProductoIntrinsicValidationService } from './domain/services/producto-intrinsic-validation.service';
 import { ProductoDeletePolicy } from './application/policies/producto-delete.policy';
 import { CambioPreciosMasivoHistorial } from './domain/entities/cambio-precio-masivo-historial.entity';
+import { HistorialPrecio } from './domain/entities/historial-precio.entity';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { CambioPreciosMasivoHistorial } from './domain/entities/cambio-precio-ma
       Producto,
       MovimientoStock,
       CambioPreciosMasivoHistorial,
+      HistorialPrecio,
     ]),
     CommonModule,
     forwardRef(() => LineaModule),

@@ -34,6 +34,9 @@ import { PoliticaPrecio } from '../../domain/services/politica-precio.service';
 import { CambioPreciosMasivoHistorial } from '../../domain/entities/cambio-precio-masivo-historial.entity';
 import { AlcanceAjustePrecio } from '../../enums/alcance-ajuste-precio.enum';
 import { MovimientoStock } from '../../domain/entities/movimiento-stock.entity';
+import { HistorialPrecio } from '../../domain/entities/historial-precio.entity';
+import { CambiarPrecioDto } from '../../dto/cambiar-precio.dto';
+import { HistorialPrecioDto } from '../../dto/historial-precio.dto';
 import { DataSource } from 'typeorm';
 
 @Injectable()
@@ -417,6 +420,59 @@ export class ProductoService {
     };
   }
 
+  async cambiarPrecio(
+    productoId: number,
+    dto: CambiarPrecioDto,
+  ): Promise<{
+    message: string;
+    precioAnterior: number;
+    precioActual: number;
+  }> {
+    await this.usuarioValidator.validarUsuarioExiste(dto.usuarioId);
+
+    const resultado = await this.cambiarPrecioEnTransaccion(
+      productoId,
+      dto.precioNuevo,
+      dto.motivo,
+      dto.usuarioId,
+    );
+
+    return {
+      message: `Precio actualizado para "${resultado.denominacion}"`,
+      precioAnterior: resultado.precioAnterior,
+      precioActual: resultado.precioActual,
+    };
+  }
+
+  async findHistorialPrecios(
+    productoId: number,
+    skip: number,
+    take: number,
+  ): Promise<{ data: HistorialPrecioDto[]; total: number }> {
+    await this.findEntityById(productoId);
+
+    const historialRepository = this.dataSource.getRepository(HistorialPrecio);
+    const [rows, total] = await historialRepository.findAndCount({
+      where: { productoId },
+      order: { fecha: 'DESC' },
+      skip,
+      take,
+    });
+
+    return {
+      data: rows.map((row) => ({
+        id: row.id,
+        productoId: row.productoId,
+        precioAnterior: row.precioAnterior,
+        precioNuevo: row.precioNuevo,
+        motivo: row.motivo,
+        fecha: row.fecha,
+        usuarioId: row.usuarioId,
+      })),
+      total: PaginacionUtils.totalItems(total),
+    };
+  }
+
   // ============================================================
   // VALIDACIONES PRIVADAS
   // ============================================================
@@ -482,6 +538,43 @@ export class ProductoService {
       await manager.save(MovimientoStock, movimiento);
 
       return { stock: producto.stock, denominacion: producto.denominacion };
+    });
+  }
+
+  private async cambiarPrecioEnTransaccion(
+    productoId: number,
+    precioNuevo: number,
+    motivo: string,
+    usuarioId?: number,
+  ): Promise<{
+    precioAnterior: number;
+    precioActual: number;
+    denominacion: string;
+  }> {
+    return this.dataSource.transaction(async (manager) => {
+      const producto = await manager.findOne(Producto, {
+        where: { id: productoId },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (!producto) {
+        throw new NotFoundException(
+          `Producto con ID ${productoId} no encontrado`,
+        );
+      }
+
+      const precioAnterior = producto.precio ?? 0;
+      const historial = producto.cambiarPrecio(precioNuevo, motivo, usuarioId);
+
+      await manager.update(Producto, producto.id, {
+        precio: producto.precio,
+      });
+      await manager.save(HistorialPrecio, historial);
+
+      return {
+        precioAnterior,
+        precioActual: precioNuevo,
+        denominacion: producto.denominacion,
+      };
     });
   }
 

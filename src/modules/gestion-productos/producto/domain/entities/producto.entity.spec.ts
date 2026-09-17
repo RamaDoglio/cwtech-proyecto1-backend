@@ -3,6 +3,7 @@ import { Producto } from './producto.entity';
 import { TipoMovimientoStock } from './movimiento-stock.entity';
 import { MotivoRequeridoException } from '../../../../common/exceptions/motivo-requerido.exception';
 import { StockNegativoException } from '../../../../common/exceptions/stock-negativo.exception';
+import { PrecioInvalidoException } from '../../../../common/exceptions/precio-invalido.exception';
 
 describe('Producto.ajustarStock', () => {
   let producto: Producto;
@@ -120,6 +121,68 @@ describe('Producto.ajustarStock', () => {
 
       expect(producto.stock).toBe(10);
       expect(producto.movimientos).toHaveLength(0);
+    });
+  });
+});
+
+describe('Producto.cambiarPrecio', () => {
+  let producto: Producto;
+
+  beforeEach(() => {
+    producto = new Producto();
+    producto.id = 1;
+    producto.denominacion = 'Laptop HP';
+    producto.precio = 100;
+    producto.historialPrecios = [];
+  });
+
+  describe('casos válidos', () => {
+    it('debe actualizar el precio y registrar el historial', () => {
+      const historial = producto.cambiarPrecio(150, 'Aumento de costo', 1);
+
+      expect(producto.precio).toBe(150);
+      expect(producto.historialPrecios).toHaveLength(1);
+      expect(historial.precioAnterior).toBe(100);
+      expect(historial.precioNuevo).toBe(150);
+      expect(historial.motivo).toBe('Aumento de costo');
+      expect(historial.usuarioId).toBe(1);
+    });
+
+    it('debe registrar precioAnterior como 0 si el producto nunca tuvo precio', () => {
+      producto.precio = undefined;
+
+      const historial = producto.cambiarPrecio(80, 'Precio inicial');
+
+      expect(historial.precioAnterior).toBe(0);
+      expect(producto.precio).toBe(80);
+    });
+
+    it('debe acumular múltiples cambios en el historial', () => {
+      producto.cambiarPrecio(120, 'Ajuste 1');
+      producto.cambiarPrecio(140, 'Ajuste 2');
+
+      expect(producto.precio).toBe(140);
+      expect(producto.historialPrecios).toHaveLength(2);
+    });
+  });
+
+  describe('casos inválidos', () => {
+    it('debe lanzar PrecioInvalidoException si el precio nuevo es 0 y no modificar el producto', () => {
+      expect(() => producto.cambiarPrecio(0, 'motivo')).toThrow(
+        PrecioInvalidoException,
+      );
+
+      expect(producto.precio).toBe(100);
+      expect(producto.historialPrecios).toHaveLength(0);
+    });
+
+    it('debe lanzar MotivoRequeridoException si falta el motivo y no modificar el producto', () => {
+      expect(() =>
+        producto.cambiarPrecio(150, undefined as unknown as string),
+      ).toThrow(MotivoRequeridoException);
+
+      expect(producto.precio).toBe(100);
+      expect(producto.historialPrecios).toHaveLength(0);
     });
   });
 });
