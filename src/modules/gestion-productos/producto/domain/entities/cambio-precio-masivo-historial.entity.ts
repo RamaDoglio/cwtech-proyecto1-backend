@@ -1,4 +1,4 @@
-import {Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, CreateDateColumn,} from 'typeorm';
+import {Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, CreateDateColumn, RelationId,} from 'typeorm';
 import { Usuario } from 'src/modules/gestion-usuario/usuario/domain/entities/usuario.entity';
 import { TipoAumento } from '../../../../common/enums/tipo-aumento.emun';
 import { AlcanceAjustePrecio } from '../../enums/alcance-ajuste-precio.enum';
@@ -27,7 +27,7 @@ export class CambioPreciosMasivoHistorial {
   @JoinColumn({ name: 'usuario_id' })
   usuario: Usuario;
 
-  @Column({ type: 'int' })
+  @RelationId((historial: CambioPreciosMasivoHistorial) => historial.usuario)
   usuarioId: number;
 
   @CreateDateColumn()

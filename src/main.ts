@@ -17,7 +17,6 @@ async function bootstrap() {
       forbidNonWhitelisted: true, // Lanza error si se reciben propiedades no permitidas
       transformOptions: {
         enableImplicitConversion: true,
-
       },
       exceptionFactory: (errors: ValidationError[]) => {
         const flatten = (
@@ -35,7 +34,6 @@ async function bootstrap() {
               : [];
             return [...own, ...nested];
           });
-
         return new BadRequestException({
           code: 'VALIDACION_DTO',
           message: 'Datos inválidos en la solicitud',
