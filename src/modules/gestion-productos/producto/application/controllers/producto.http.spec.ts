@@ -17,6 +17,8 @@ describe('ProductoController HTTP', () => {
     create: jest.fn(),
     update: jest.fn(),
     ajustarStockManual: jest.fn(),
+    cambiarPrecio: jest.fn(),
+    findHistorialPrecios: jest.fn(),
   };
 
   const productoValido = {
@@ -36,6 +38,15 @@ describe('ProductoController HTTP', () => {
     productoService.ajustarStockManual.mockResolvedValue({
       message: 'Stock ajustado para "producto de prueba"',
       stockActual: 12,
+    });
+    productoService.cambiarPrecio.mockResolvedValue({
+      message: 'Precio actualizado para "producto de prueba"',
+      precioAnterior: 100,
+      precioActual: 150,
+    });
+    productoService.findHistorialPrecios.mockResolvedValue({
+      data: [],
+      total: 0,
     });
     const module = await Test.createTestingModule({
       controllers: [ProductoController],
@@ -178,5 +189,98 @@ describe('ProductoController HTTP', () => {
       .post('/producto/1/ajustar-manual')
       .send({ cantidad: -20, motivo: 'Recuento de inventario', usuarioId: 1 })
       .expect(409);
+  });
+
+  it('cambia el precio mediante el caso de uso y devuelve precio anterior/actual', async () => {
+    const cambio = {
+      precioNuevo: 150,
+      motivo: '  Aumento de costo del proveedor  ',
+      usuarioId: 1,
+    };
+
+    const response = await request(app.getHttpServer())
+      .post('/producto/1/cambiar-precio')
+      .send(cambio)
+      .expect(200);
+
+    expect(response.body).toEqual({
+      message: 'Precio actualizado para "producto de prueba"',
+      precioAnterior: 100,
+      precioActual: 150,
+    });
+    expect(productoService.cambiarPrecio).toHaveBeenCalledWith(1, {
+      ...cambio,
+      motivo: 'Aumento de costo del proveedor',
+    });
+  });
+
+  it('rechaza un cambio de precio sin motivo', async () => {
+    await request(app.getHttpServer())
+      .post('/producto/1/cambiar-precio')
+      .send({ precioNuevo: 150, usuarioId: 1 })
+      .expect(400);
+
+    expect(productoService.cambiarPrecio).not.toHaveBeenCalled();
+  });
+
+  it('rechaza un cambio de precio con precioNuevo <= 0', async () => {
+    await request(app.getHttpServer())
+      .post('/producto/1/cambiar-precio')
+      .send({ precioNuevo: 0, motivo: 'motivo', usuarioId: 1 })
+      .expect(400);
+
+    expect(productoService.cambiarPrecio).not.toHaveBeenCalled();
+  });
+
+  it('expone 404 al cambiar el precio de un producto inexistente', async () => {
+    productoService.cambiarPrecio.mockRejectedValueOnce(
+      new NotFoundException('Producto con ID 999 no encontrado'),
+    );
+
+    await request(app.getHttpServer())
+      .post('/producto/999/cambiar-precio')
+      .send({ precioNuevo: 150, motivo: 'motivo', usuarioId: 1 })
+      .expect(404);
+  });
+
+  it('consulta el historial de precios paginado', async () => {
+    productoService.findHistorialPrecios.mockResolvedValueOnce({
+      data: [
+        {
+          id: 1,
+          productoId: 1,
+          precioAnterior: 100,
+          precioNuevo: 150,
+          motivo: 'Aumento de costo',
+          fecha: '2026-01-01T00:00:00.000Z',
+          usuarioId: 1,
+        },
+      ],
+      total: 1,
+    });
+
+    const response = await request(app.getHttpServer())
+      .get('/producto/1/historial-precios')
+      .query({ skip: 0, take: 10 })
+      .expect(200);
+
+    expect(response.body.total).toBe(1);
+    expect(productoService.findHistorialPrecios).toHaveBeenCalledWith(
+      1,
+      0,
+      10,
+    );
+  });
+
+  it('aplica valores por defecto de paginación en el historial de precios', async () => {
+    await request(app.getHttpServer())
+      .get('/producto/1/historial-precios')
+      .expect(200);
+
+    expect(productoService.findHistorialPrecios).toHaveBeenCalledWith(
+      1,
+      0,
+      10,
+    );
   });
 });

@@ -23,6 +23,7 @@ import {
   MovimientoStock,
   TipoMovimientoStock,
 } from './movimiento-stock.entity';
+import { HistorialPrecio } from './historial-precio.entity';
 import { StockNegativoException } from '../../../../common/exceptions/stock-negativo.exception';
 
 @Entity('producto')
@@ -182,6 +183,13 @@ export class Producto {
   })
   movimientos: MovimientoStock[];
 
+  // ========= Historial de Precios =============
+
+  @OneToMany(() => HistorialPrecio, (historial) => historial.producto, {
+    eager: false,
+  })
+  historialPrecios: HistorialPrecio[];
+
   // ============================================================
   // Ajuste de stock — invariante del agregado Producto
   // ============================================================
@@ -214,5 +222,32 @@ export class Producto {
     this.stock = nuevoStock;
 
     return movimiento;
+  }
+
+  // ============================================================
+  // Cambio de precio — invariante del agregado Producto
+  // ============================================================
+  cambiarPrecio(
+    precioNuevo: number,
+    motivo: string,
+    usuarioId?: number,
+  ): HistorialPrecio {
+    const precioAnterior = this.precio ?? 0;
+
+    // Invariantes "precio nuevo > 0" y "motivo obligatorio" delegadas a
+    // HistorialPrecio.crear().
+    const historial = HistorialPrecio.crear(
+      this.id,
+      precioAnterior,
+      precioNuevo,
+      motivo,
+      usuarioId,
+    );
+
+    (this.historialPrecios ??= []).push(historial);
+
+    this.precio = precioNuevo;
+
+    return historial;
   }
 }
