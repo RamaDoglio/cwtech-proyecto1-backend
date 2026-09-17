@@ -370,7 +370,9 @@ export class ProductoService {
   async aplicarCambioMasivo(
     dto: CambioPreciosMasivoDto,
   ): Promise<{ message: string; cantidadProductosAfectados: number }> {
-    await this.usuarioValidator.validarUsuarioExiste(dto.usuarioId);
+    const usuario = await this.usuarioValidator.validarUsuarioExiste(
+      dto.usuarioId,
+    );
 
     const productos = await this.repository.findActivosParaAjustePrecio(
       dto.alcance === AlcanceAjustePrecio.LINEA ? dto.lineaId : undefined,
@@ -407,7 +409,7 @@ export class ProductoService {
         alcance: dto.alcance,
         lineaId: dto.lineaId,
         cantidadProductosAfectados: productos.length,
-        usuarioId: dto.usuarioId,
+        usuario,
       }),
     );
 
