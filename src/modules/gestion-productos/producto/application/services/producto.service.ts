@@ -37,12 +37,16 @@ import { MovimientoStock } from '../../domain/entities/movimiento-stock.entity';
 import { HistorialPrecio } from '../../domain/entities/historial-precio.entity';
 import { CambiarPrecioDto } from '../../dto/cambiar-precio.dto';
 import { HistorialPrecioDto } from '../../dto/historial-precio.dto';
-import { DataSource } from 'typeorm';
+import { TipoAumento } from 'src/modules/common/enums/tipo-aumento.emun';
+import { Linea } from '../../../linea/domain/entities/linea.entity';
+import { DataSource, EntityManager } from 'typeorm';
 
 @Injectable()
 export class ProductoService {
   private readonly logger = new Logger(ProductoService.name);
   private readonly ENTITY_NAME = 'Producto';
+  private readonly MOTIVO_EDICION =
+    'Edición del producto: precio recalculado según costo y margen';
 
   constructor(
     @Inject('IProductoRepository')
@@ -102,9 +106,26 @@ export class ProductoService {
     const { marca, linea, usuario, productoActual } =
       await this.validarYPrepararActualizacion(id, dto);
 
+    const precioAnterior = productoActual.precio ?? 0;
     ProductoMapper.applyUpdate(productoActual, dto, linea, marca, usuario);
+    const precioNuevo = productoActual.precio ?? 0;
 
-    const entity = await this.repository.save(productoActual);
+    // El mapper recalcula el precio con costo y margen en cada edición; solo
+    // un cambio real queda en el historial. HistorialPrecio.crear() rechaza
+    // un precio nuevo <= 0 antes de persistir nada.
+    const entity =
+      precioNuevo === precioAnterior
+        ? await this.repository.save(productoActual)
+        : await this.guardarConHistorialDePrecio(
+            productoActual,
+            HistorialPrecio.crear(
+              productoActual.id,
+              precioAnterior,
+              precioNuevo,
+              this.MOTIVO_EDICION,
+              usuario.id,
+            ),
+          );
 
     return MessageFrontUtils.createSimple(
       this.ENTITY_NAME,
@@ -376,50 +397,66 @@ export class ProductoService {
     const usuario = await this.usuarioValidator.validarUsuarioExiste(
       dto.usuarioId,
     );
+    const lineaId =
+      dto.alcance === AlcanceAjustePrecio.LINEA ? dto.lineaId : undefined;
 
-    const productos = await this.repository.findActivosParaAjustePrecio(
-      dto.alcance === AlcanceAjustePrecio.LINEA ? dto.lineaId : undefined,
-    );
-
-    if (productos.length === 0) {
-      throw new NotFoundException(
-        dto.alcance === AlcanceAjustePrecio.LINEA
-          ? `No hay productos activos para la línea ${dto.lineaId}.`
-          : 'No hay productos activos para aplicar el cambio masivo.',
-      );
-    }
-
-    for (const producto of productos) {
-      const precioActual = Number(producto.precio ?? 0);
-      const nuevoPrecio = PoliticaPrecio.aplicarAjuste(
-        precioActual,
-        dto.tipo,
-        dto.valor,
+    // Todo o nada: si falla un producto, el ajuste no se aplica a ninguno.
+    return this.dataSource.transaction(async (manager) => {
+      const productos = await this.findActivosParaAjustePrecioConLock(
+        manager,
+        lineaId,
       );
 
-      producto.precio = nuevoPrecio;
-      await this.repository.save(producto);
-    }
+      if (productos.length === 0) {
+        throw new NotFoundException(
+          dto.alcance === AlcanceAjustePrecio.LINEA
+            ? `No hay productos activos para la línea ${dto.lineaId}.`
+            : 'No hay productos activos para aplicar el cambio masivo.',
+        );
+      }
 
-    const historialRepository = this.dataSource.getRepository(
-      CambioPreciosMasivoHistorial,
-    );
+      const motivo = await this.motivoAjusteMasivo(manager, dto, lineaId);
 
-    await historialRepository.save(
-      historialRepository.create({
-        tipo: dto.tipo,
-        valor: dto.valor,
-        alcance: dto.alcance,
-        lineaId: dto.lineaId,
+      for (const producto of productos) {
+        const precioActual = Number(producto.precio ?? 0);
+        const nuevoPrecio = PoliticaPrecio.aplicarAjuste(
+          precioActual,
+          dto.tipo,
+          dto.valor,
+        );
+
+        // Solo los cambios reales quedan en el historial del producto.
+        if (nuevoPrecio === precioActual) continue;
+
+        const historial = producto.cambiarPrecio(
+          nuevoPrecio,
+          motivo,
+          usuario.id,
+        );
+
+        await manager.update(Producto, producto.id, {
+          precio: producto.precio,
+        });
+        await manager.save(HistorialPrecio, historial);
+      }
+
+      await manager.save(
+        CambioPreciosMasivoHistorial,
+        manager.create(CambioPreciosMasivoHistorial, {
+          tipo: dto.tipo,
+          valor: dto.valor,
+          alcance: dto.alcance,
+          lineaId: dto.lineaId,
+          cantidadProductosAfectados: productos.length,
+          usuario,
+        }),
+      );
+
+      return {
+        message: `Se aplicó el ajuste a ${productos.length} productos.`,
         cantidadProductosAfectados: productos.length,
-        usuario,
-      }),
-    );
-
-    return {
-      message: `Se aplicó el ajuste a ${productos.length} productos.`,
-      cantidadProductosAfectados: productos.length,
-    };
+      };
+    });
   }
 
   async cambiarPrecio(
@@ -578,6 +615,59 @@ export class ProductoService {
         denominacion: producto.denominacion,
       };
     });
+  }
+
+  private async guardarConHistorialDePrecio(
+    producto: Producto,
+    historial: HistorialPrecio,
+  ): Promise<Producto> {
+    return this.dataSource.transaction(async (manager) => {
+      const entity = await manager.save(Producto, producto);
+      await manager.save(HistorialPrecio, historial);
+      return entity;
+    });
+  }
+
+  // Mismo criterio que findActivosParaAjustePrecio del repositorio, pero dentro
+  // de la transacción y bloqueando las filas para no pisar cambios concurrentes.
+  private async findActivosParaAjustePrecioConLock(
+    manager: EntityManager,
+    lineaId?: number,
+  ): Promise<Producto[]> {
+    const query = manager
+      .createQueryBuilder(Producto, 'producto')
+      .setLock('pessimistic_write')
+      .where('producto.deletedAt IS NULL');
+
+    if (lineaId) {
+      query.andWhere('producto.linea_id = :lineaId', { lineaId });
+    }
+
+    return query.getMany();
+  }
+
+  // Ej.: "Ajuste masivo +10 % (todos los productos)",
+  //      "Ajuste masivo -$ 1.500 (línea BEBIDAS)".
+  private async motivoAjusteMasivo(
+    manager: EntityManager,
+    dto: CambioPreciosMasivoDto,
+    lineaId?: number,
+  ): Promise<string> {
+    const signo = dto.valor < 0 ? '-' : '+';
+    const valor = new Intl.NumberFormat('es-AR', {
+      maximumFractionDigits: 5,
+    }).format(Math.abs(dto.valor));
+    const ajuste =
+      dto.tipo === TipoAumento.PORCENTAJE
+        ? `${signo}${valor} %`
+        : `${signo}$ ${valor}`;
+
+    if (!lineaId) {
+      return `Ajuste masivo ${ajuste} (todos los productos)`;
+    }
+
+    const linea = await manager.findOne(Linea, { where: { id: lineaId } });
+    return `Ajuste masivo ${ajuste} (línea ${linea?.denominacion ?? lineaId})`;
   }
 
   private async validarYPrepararActualizacion(
