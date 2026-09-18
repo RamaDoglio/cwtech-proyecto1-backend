@@ -18,6 +18,10 @@ import { Producto } from '../../domain/entities/producto.entity';
 import { MovimientoStock } from '../../domain/entities/movimiento-stock.entity';
 import { HistorialPrecio } from '../../domain/entities/historial-precio.entity';
 import { PrecioInvalidoException } from '../../../../common/exceptions/precio-invalido.exception';
+import { CambioPreciosMasivoHistorial } from '../../domain/entities/cambio-precio-masivo-historial.entity';
+import { CambioPreciosMasivoDto } from '../../dto/cambio-precios-masivo.dto';
+import { AlcanceAjustePrecio } from '../../enums/alcance-ajuste-precio.enum';
+import { TipoAumento } from '../../../../common/enums/tipo-aumento.emun';
 import { NotFoundException } from '@nestjs/common';
 
 // ==================== MOCKS ====================
@@ -81,6 +85,8 @@ const mockEntityManager = {
   findOne: jest.fn(),
   update: jest.fn(),
   save: jest.fn(),
+  create: jest.fn(),
+  createQueryBuilder: jest.fn(),
 };
 const mockDataSource = {
   transaction: jest.fn(),
@@ -202,35 +208,254 @@ describe('ProductoService', () => {
     );
   });
 
-  it('recalcula el precio al actualizar el costo o el margen', async () => {
-    mockRepository.findOne.mockResolvedValue({
-      id: 1,
-      denominacion: 'producto',
-      costo: 100,
-      porcentaje: 15,
-      lineaId: 1,
-      marcaId: 1,
-      alicuotaIva: 21,
+  describe('update — historial de precios', () => {
+    const prepararEdicion = () => {
+      mockRepository.findOne.mockResolvedValue(
+        Object.assign(new Producto(), {
+          id: 1,
+          denominacion: 'producto',
+          costo: 100,
+          porcentaje: 15,
+          precio: 115,
+          lineaId: 1,
+          marcaId: 1,
+          alicuotaIva: 21,
+        }),
+      );
+      mockRelatedEntitiesValidator.validarYObtenerEntidadesRelacionadas.mockResolvedValue(
+        {
+          marca: { id: 1 },
+          linea: { id: 1 },
+        },
+      );
+      mockUsuarioValidator.validarUsuarioExiste.mockResolvedValue({ id: 1 });
+      mockRepository.save.mockImplementation(async (producto) => producto);
+      mockEntityManager.save.mockImplementation(
+        async (_target, entity) => entity,
+      );
+      mockDataSource.transaction.mockImplementation(async (callback) =>
+        callback(mockEntityManager),
+      );
+    };
+
+    it('recalcula el precio y registra el cambio en el historial en una única transacción', async () => {
+      prepararEdicion();
+
+      await service.update(1, {
+        denominacion: 'producto',
+        costo: 200,
+        margen: 0,
+        usuarioUpdatedId: 1,
+      } as UpdateProductoDto);
+
+      expect(mockDataSource.transaction).toHaveBeenCalledTimes(1);
+      expect(mockEntityManager.save).toHaveBeenCalledWith(
+        Producto,
+        expect.objectContaining({ costo: 200, porcentaje: 0, precio: 200 }),
+      );
+      expect(mockEntityManager.save).toHaveBeenCalledWith(
+        HistorialPrecio,
+        expect.objectContaining({
+          productoId: 1,
+          precioAnterior: 115,
+          precioNuevo: 200,
+          motivo:
+            'Edición del producto: precio recalculado según costo y margen',
+          usuarioId: 1,
+        }),
+      );
+      expect(mockRepository.save).not.toHaveBeenCalled();
     });
-    mockRelatedEntitiesValidator.validarYObtenerEntidadesRelacionadas.mockResolvedValue(
-      {
-        marca: { id: 1 },
-        linea: { id: 1 },
-      },
-    );
-    mockUsuarioValidator.validarUsuarioExiste.mockResolvedValue({ id: 1 });
-    mockRepository.save.mockImplementation(async (producto) => producto);
 
-    await service.update(1, {
-      denominacion: 'producto',
-      costo: 200,
-      margen: 0,
-      usuarioUpdatedId: 1,
-    } as UpdateProductoDto);
+    it('no registra historial si la edición no cambia el precio', async () => {
+      prepararEdicion();
 
-    expect(mockRepository.save).toHaveBeenCalledWith(
-      expect.objectContaining({ costo: 200, porcentaje: 0, precio: 200 }),
-    );
+      await service.update(1, {
+        denominacion: 'producto renombrado',
+        usuarioUpdatedId: 1,
+      } as UpdateProductoDto);
+
+      expect(mockRepository.save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          denominacion: 'producto renombrado',
+          precio: 115,
+        }),
+      );
+      expect(mockDataSource.transaction).not.toHaveBeenCalled();
+      expect(mockEntityManager.save).not.toHaveBeenCalled();
+    });
+
+    it('rechaza una edición que deja el precio en 0 sin persistir nada', async () => {
+      prepararEdicion();
+
+      await expect(
+        service.update(1, {
+          costo: 0,
+          usuarioUpdatedId: 1,
+        } as UpdateProductoDto),
+      ).rejects.toThrow(PrecioInvalidoException);
+
+      expect(mockRepository.save).not.toHaveBeenCalled();
+      expect(mockDataSource.transaction).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('aplicarCambioMasivo', () => {
+    const prepararAjuste = (productos: Producto[]) => {
+      const queryBuilder = {
+        setLock: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+        getMany: jest.fn().mockResolvedValue(productos),
+      };
+      mockUsuarioValidator.validarUsuarioExiste.mockResolvedValue({ id: 1 });
+      mockEntityManager.createQueryBuilder.mockReturnValue(queryBuilder);
+      mockEntityManager.update.mockResolvedValue({ affected: 1 });
+      mockEntityManager.save.mockImplementation(
+        async (_target, entity) => entity,
+      );
+      mockEntityManager.create.mockImplementation((_target, data) => data);
+      mockDataSource.transaction.mockImplementation(async (callback) =>
+        callback(mockEntityManager),
+      );
+      return queryBuilder;
+    };
+
+    const producto = (id: number, precio: number) =>
+      Object.assign(new Producto(), {
+        id,
+        denominacion: `producto ${id}`,
+        precio,
+        historialPrecios: [],
+      });
+
+    it('cambia los precios y registra un historial por producto en una única transacción', async () => {
+      const queryBuilder = prepararAjuste([producto(1, 100), producto(2, 200)]);
+
+      const resultado = await service.aplicarCambioMasivo({
+        tipo: TipoAumento.PORCENTAJE,
+        valor: 10,
+        alcance: AlcanceAjustePrecio.GLOBAL,
+        usuarioId: 1,
+      } as CambioPreciosMasivoDto);
+
+      expect(mockDataSource.transaction).toHaveBeenCalledTimes(1);
+      expect(queryBuilder.setLock).toHaveBeenCalledWith('pessimistic_write');
+      expect(queryBuilder.andWhere).not.toHaveBeenCalled();
+      expect(mockEntityManager.update).toHaveBeenCalledWith(Producto, 1, {
+        precio: 110,
+      });
+      expect(mockEntityManager.update).toHaveBeenCalledWith(Producto, 2, {
+        precio: 220,
+      });
+      expect(mockEntityManager.save).toHaveBeenCalledWith(
+        HistorialPrecio,
+        expect.objectContaining({
+          productoId: 1,
+          precioAnterior: 100,
+          precioNuevo: 110,
+          motivo: 'Ajuste masivo +10 % (todos los productos)',
+          usuarioId: 1,
+        }),
+      );
+      expect(mockEntityManager.save).toHaveBeenCalledWith(
+        HistorialPrecio,
+        expect.objectContaining({
+          productoId: 2,
+          precioAnterior: 200,
+          precioNuevo: 220,
+        }),
+      );
+      expect(mockEntityManager.save).toHaveBeenCalledWith(
+        CambioPreciosMasivoHistorial,
+        expect.objectContaining({ cantidadProductosAfectados: 2 }),
+      );
+      expect(resultado).toEqual({
+        message: 'Se aplicó el ajuste a 2 productos.',
+        cantidadProductosAfectados: 2,
+      });
+    });
+
+    it('filtra por línea y la nombra en el motivo', async () => {
+      const queryBuilder = prepararAjuste([producto(1, 2000)]);
+      mockEntityManager.findOne.mockResolvedValue({
+        id: 5,
+        denominacion: 'BEBIDAS',
+      });
+
+      await service.aplicarCambioMasivo({
+        tipo: TipoAumento.MONTO_FIJO,
+        valor: -1500,
+        alcance: AlcanceAjustePrecio.LINEA,
+        lineaId: 5,
+        usuarioId: 1,
+      } as CambioPreciosMasivoDto);
+
+      expect(queryBuilder.andWhere).toHaveBeenCalledWith(
+        'producto.linea_id = :lineaId',
+        { lineaId: 5 },
+      );
+      expect(mockEntityManager.save).toHaveBeenCalledWith(
+        HistorialPrecio,
+        expect.objectContaining({
+          precioAnterior: 2000,
+          precioNuevo: 500,
+          motivo: 'Ajuste masivo -$ 1.500 (línea BEBIDAS)',
+        }),
+      );
+    });
+
+    it('no registra historial para productos cuyo precio no cambia', async () => {
+      prepararAjuste([producto(1, 100)]);
+
+      await service.aplicarCambioMasivo({
+        tipo: TipoAumento.PORCENTAJE,
+        valor: 0,
+        alcance: AlcanceAjustePrecio.GLOBAL,
+        usuarioId: 1,
+      } as CambioPreciosMasivoDto);
+
+      expect(mockEntityManager.update).not.toHaveBeenCalled();
+      expect(mockEntityManager.save).not.toHaveBeenCalledWith(
+        HistorialPrecio,
+        expect.anything(),
+      );
+    });
+
+    it('corta el ajuste dentro de la transacción si un producto queda con precio inválido', async () => {
+      prepararAjuste([producto(1, 100), producto(2, 0)]);
+
+      await expect(
+        service.aplicarCambioMasivo({
+          tipo: TipoAumento.PORCENTAJE,
+          valor: 10,
+          alcance: AlcanceAjustePrecio.GLOBAL,
+          usuarioId: 1,
+        } as CambioPreciosMasivoDto),
+      ).rejects.toThrow(RangeError);
+
+      // El error escapa del callback de la transacción, que hace rollback.
+      expect(mockDataSource.transaction).toHaveBeenCalledTimes(1);
+      expect(mockEntityManager.save).not.toHaveBeenCalledWith(
+        CambioPreciosMasivoHistorial,
+        expect.anything(),
+      );
+    });
+
+    it('lanza NotFoundException si no hay productos activos en el alcance', async () => {
+      prepararAjuste([]);
+
+      await expect(
+        service.aplicarCambioMasivo({
+          tipo: TipoAumento.PORCENTAJE,
+          valor: 10,
+          alcance: AlcanceAjustePrecio.GLOBAL,
+          usuarioId: 1,
+        } as CambioPreciosMasivoDto),
+      ).rejects.toThrow(NotFoundException);
+
+      expect(mockEntityManager.save).not.toHaveBeenCalled();
+    });
   });
 
   describe('cambiarPrecio', () => {
