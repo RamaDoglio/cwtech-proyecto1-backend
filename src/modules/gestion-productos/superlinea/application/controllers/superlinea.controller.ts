@@ -12,32 +12,33 @@ import {
   UsePipes,
   UseGuards,
 } from '@nestjs/common';
-import { PaginationWithDenominacionSuperLineaDto } from 'src/modules/common/dto/busquedas/pagination-with-denominacion-superlinea.dto';
+import { ApiOkResponse, ApiTags } from '@nestjs/swagger';
+
+import { PaginationWithDenominacionDto } from 'src/modules/common/dto/busquedas/pagination-with-denominacion.dto';
 import { NormalizeDenominacionPipe } from 'src/modules/common/pipes/normalize-denominations.pipe';
+import { NormalizeDenominacionSearchPipe } from 'src/modules/common/pipes/normalize-denominations-search.pipe';
 import { AuthGuard } from 'src/modules/gestion-usuario/auth/auth.guard';
 import { Roles } from 'src/modules/gestion-usuario/auth/roles.decorator';
-import { ApiOkResponse, ApiTags } from '@nestjs/swagger';
-import { NormalizeDenominacionSearchPipe } from 'src/modules/common/pipes/normalize-denominations-search.pipe';
 import { AuditoriaDto } from 'src/modules/gestion-sistema/auditoria/dto/auditoria.dto';
-import { LineaService } from '../services/linea.service';
-import { CreateLineaDto } from '../../dto/create-linea.dto';
-import { LineaDto } from '../../dto/linea.dto';
-import { UpdateLineaDto } from '../../dto/update-linea.dto';
-import { LineaAgrupadaDto } from '../../dto/linea-agrupada.dto';
+
+import { SuperLineaService } from '../services/superlinea.service';
+import { CreateSuperLineaDto } from '../../dto/create-superlinea.dto';
+import { SuperLineaDto } from '../../dto/superlinea.dto';
+import { UpdateSuperLineaDto } from '../../dto/update-superlinea.dto';
 
 @ApiTags('Gestion Productos')
-@Controller('linea')
+@Controller('superlinea')
 @UseGuards(AuthGuard)
-export class LineaController {
-  private readonly logger = new Logger(LineaController.name);
-  constructor(private readonly service: LineaService) {}
+export class SuperLineaController {
+  private readonly logger = new Logger(SuperLineaController.name);
+  constructor(private readonly service: SuperLineaService) {}
 
-  private readonly ENTITY_NAME = 'Linea';
+  private readonly ENTITY_NAME = 'SuperLinea';
 
   @Post()
   @Roles('Root', 'Administrador', 'Empleado')
   @UsePipes(NormalizeDenominacionPipe)
-  create(@Body() createDto: CreateLineaDto) {
+  create(@Body() createDto: CreateSuperLineaDto) {
     this.logger.log(`Creando un nuevo ${this.ENTITY_NAME}...`);
     return this.service.create(createDto);
   }
@@ -46,44 +47,22 @@ export class LineaController {
   @Roles('Root', 'Administrador', 'Empleado')
   @UsePipes(NormalizeDenominacionSearchPipe)
   findByDenominacionFiltered(
-    @Query() paginationDto: PaginationWithDenominacionSuperLineaDto,
+    @Query() paginationDto: PaginationWithDenominacionDto,
   ) {
-    const {
-      denominacion = '',
-      skip,
-      take,
-      incluirEliminados,
-      superlineaId,
-    } = paginationDto;
-    this.logger.log(`Buscando líneas con denominación: ${denominacion}`);
+    const { denominacion = '', skip, take, incluirEliminados } = paginationDto;
+    this.logger.log(`Buscando SuperLíneas con denominación: ${denominacion}`);
     return this.service.findByDenominacionFiltered(
       denominacion,
       skip,
       take,
       incluirEliminados,
-      superlineaId,
     );
-  }
-
-  @Get('agrupadas-por-superlinea')
-  @Roles('Root', 'Administrador', 'Empleado')
-  @ApiOkResponse({ type: [LineaAgrupadaDto] })
-  findAgrupadasPorSuperlinea(
-    @Query('incluirEliminados') incluirEliminados?: string,
-    @Query('superlineaId', new ParseIntPipe({ optional: true }))
-    superlineaId?: number,
-  ): Promise<LineaAgrupadaDto[]> {
-    const incluir = incluirEliminados === 'true';
-    this.logger.log(
-      `Agrupando líneas por superlínea (incluirEliminados=${incluir}, superlineaId=${superlineaId})`,
-    );
-    return this.service.findAgrupadasPorSuperlinea(incluir, superlineaId);
   }
 
   @Get(':id')
-  @ApiOkResponse({ type: LineaDto })
+  @ApiOkResponse({ type: SuperLineaDto })
   @Roles('Root', 'Administrador', 'Empleado')
-  findOne(@Param('id', ParseIntPipe) id: number): Promise<LineaDto> {
+  findOne(@Param('id', ParseIntPipe) id: number): Promise<SuperLineaDto> {
     this.logger.log(`Buscando ${this.ENTITY_NAME} con ID: ${id}`);
     return this.service.findDtoById(+id);
   }
@@ -93,7 +72,7 @@ export class LineaController {
   @UsePipes(NormalizeDenominacionPipe)
   update(
     @Param('id', ParseIntPipe) id: number,
-    @Body() updateDto: UpdateLineaDto,
+    @Body() updateDto: UpdateSuperLineaDto,
   ) {
     this.logger.log(`Actualizando ${this.ENTITY_NAME} con ID: ${id}`);
     return this.service.update(id, updateDto);
@@ -114,7 +93,7 @@ export class LineaController {
   @Get(':id/audit')
   @Roles('Root', 'Administrador', 'Empleado')
   @ApiOkResponse({
-    description: 'Informacion de auditoria',
+    description: 'Información de auditoría',
     type: AuditoriaDto,
   })
   async findByIdConAuditoria(

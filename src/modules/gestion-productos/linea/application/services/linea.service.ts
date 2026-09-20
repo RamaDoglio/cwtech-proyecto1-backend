@@ -17,31 +17,37 @@ import { LineaDto } from '../../dto/linea.dto';
 import { LineaMapper } from '../../mappers/linea.mapper';
 import { PoliticaEliminacionLinea } from '../../domain/services/politica-eliminacion-linea.service';
 import { Linea } from '../../domain/entities/linea.entity';
+import { ISuperLineaRepository } from '../../../superlinea/domain/interfaces/superlinea.repository.interface';
+import { LineaAgrupadaDto } from '../../dto/linea-agrupada.dto';
 
 @Injectable()
 export class LineaService {
   private readonly logger = new Logger(LineaService.name);
+
+  private readonly ENTITY_NAME = 'Linea';
+
   constructor(
     @Inject('ILineaRepository')
     private readonly repository: ILineaRepository,
 
     @Inject(forwardRef(() => PoliticaEliminacionLinea))
     private readonly validacionesService: PoliticaEliminacionLinea,
+
     private readonly usuarioService: UsuarioService,
 
-  ) { }
-
-  private readonly ENTITY_NAME = 'Linea';
+    @Inject('ISuperLineaRepository')
+    private readonly superlineaRepository: ISuperLineaRepository,
+  ) {}
 
   async create(dto: CreateLineaDto) {
     this.logger.log(
-      `Creando un nuevo ${this.ENTITY_NAME} con denominación: ${dto.denominacion} a: ${dto.denominacion}`,
+      `Creando un nuevo ${this.ENTITY_NAME} con denominación: ${dto.denominacion}`,
     );
-    await this.checkDenominacionExists(dto.denominacion, 0);
 
+    await this.checkDenominacionExists(dto.denominacion, 0);
+    await this.checkSuperlineaExists(dto.superlineaId);
 
     const entity = await this.repository.create(dto);
-
 
     return MessageFrontUtils.createSimple(
       `${this.ENTITY_NAME}`,
@@ -51,16 +57,19 @@ export class LineaService {
   }
 
   async update(id: number, dto: UpdateLineaDto) {
-    this.logger.log(`Actualizando  ${this.ENTITY_NAME} con ID: ${id}`);
+    this.logger.log(`Actualizando ${this.ENTITY_NAME} con ID: ${id}`);
 
-
-    const linea = await this.findEntityById(id); // Verifica existencia
+    const linea = await this.findEntityById(id);
     ensureNotSistemaEntity(linea, 'Linea');
+
     if (dto.denominacion)
       await this.checkDenominacionExists(dto.denominacion, id);
 
+    if (dto.superlineaId)
+      await this.checkSuperlineaExists(dto.superlineaId);
 
     const entity = await this.repository.update(id, dto);
+
     return MessageFrontUtils.createSimple(
       `${this.ENTITY_NAME}`,
       entity.denominacion,
@@ -73,33 +82,70 @@ export class LineaService {
     skip = 0,
     take = 10,
     incluirEliminados: boolean = false,
+    superlineaId?: number,
   ): Promise<{ data: LineaDto[]; total: number }> {
     this.logger.log(
-      ` ser Buscando o ${denominacion}  skip=${skip}, take=${take}`,
+      `Buscando ${denominacion} skip=${skip}, take=${take}, superlineaId=${superlineaId}`,
     );
+
     const result = await this.repository.findByDenominacionFiltered(
       denominacion,
       skip,
       take,
       incluirEliminados,
+      superlineaId,
     );
+
     const data: LineaDto[] = result.data.map((linea) =>
       LineaMapper.toDto(linea),
     );
+
     return {
       data,
       total: PaginacionUtils.totalItems(result.total),
     };
   }
 
+  async findAgrupadasPorSuperlinea(
+    incluirEliminados: boolean = false,
+    superlineaId?: number,
+  ): Promise<LineaAgrupadaDto[]> {
+    this.logger.log(
+      `Agrupando Líneas por SuperLínea (superlineaId=${superlineaId})`,
+    );
+
+    const lineas = await this.repository.findAgrupadasPorSuperlinea(
+      incluirEliminados,
+      superlineaId,
+    );
+
+    const mapa = new Map<number, LineaAgrupadaDto>();
+
+    for (const linea of lineas) {
+      const id = linea.superlineaId;
+      const denominacion = linea.superlinea?.denominacion ?? '';
+
+      if (!mapa.has(id)) {
+        mapa.set(id, {
+          superlineaId: id,
+          superlineaDenominacion: denominacion,
+          lineas: [],
+          total: 0,
+        });
+      }
+
+      const grupo = mapa.get(id)!;
+      grupo.lineas.push(LineaMapper.toDto(linea));
+      grupo.total += 1;
+    }
+
+    return Array.from(mapa.values());
+  }
+
   async findAllFor(
     denominacion: string,
   ): Promise<{ data: LineaDto[]; total: number }> {
     const result = await this.repository.findAllFor(denominacion);
-
-    this.logger.log(
-      ` ser Buscando o ${denominacion}    result.length=${result.length}}`,
-    );
 
     const data: LineaDto[] = result.map((linea) => LineaMapper.toDto(linea));
 
@@ -115,7 +161,6 @@ export class LineaService {
       throw new NotFoundException(
         `${this.ENTITY_NAME} con ID ${id} no encontrado.`,
       );
-    this.logger.warn(`FindOne : ${JSON.stringify(entity)}.`);
 
     return entity;
   }
@@ -126,6 +171,7 @@ export class LineaService {
       throw new NotFoundException(
         `${this.ENTITY_NAME} con ID ${id} no encontrado.`,
       );
+
     return LineaMapper.toDto(entity);
   }
 
@@ -135,6 +181,7 @@ export class LineaService {
       throw new NotFoundException(
         `${this.ENTITY_NAME} con ID ${id} no encontrado.`,
       );
+
     return entity;
   }
 
@@ -159,11 +206,12 @@ export class LineaService {
 
     if (tieneProductosActivos) {
       throw new ConflictException(
-        'No se puede eliminar la marca porque está asociada a productos activos.',
+        'No se puede eliminar la línea porque está asociada a productos activos.',
       );
     }
 
     await this.repository.remove(entity, usuario);
+
     return MessageFrontUtils.createSimple(
       `${this.ENTITY_NAME}`,
       entity.denominacion,
@@ -171,35 +219,32 @@ export class LineaService {
     );
   }
 
+  async findAllListado(): Promise<Linea[]> {
+    return this.repository.findAllListado();
+  }
+
   private async checkDenominacionExists(denominacion: string, id: number) {
     const denominacionNormalizada = denominacion.trim().toUpperCase();
-
-    this.logger.log(
-      ` Verificando denominación: "${denominacionNormalizada}" para ID: ${id}`,
-    );
 
     const exists = await this.repository.findByDenominacionWith(
       denominacionNormalizada,
     );
 
-    this.logger.log(
-      `Resultado: ${exists ? `Encontrado ID ${exists.id}` : 'No encontrado'}`,
-    );
-
     if (exists && exists.id !== id) {
       this.logger.warn(
-        ` Conflicto: denominación ya está en uso: ${denominacionNormalizada} (ID existente: ${exists.id})`,
+        `Conflicto: denominación ya está en uso: ${denominacionNormalizada} (ID existente: ${exists.id})`,
       );
       throw new ConflictException('Denominación ya en uso o esta eliminada.');
     }
-
-    this.logger.log(`✅ Denominación disponible`);
   }
 
+  private async checkSuperlineaExists(superlineaId: number) {
+    const superlinea = await this.superlineaRepository.findOne(superlineaId);
 
-  async findAllListado(): Promise<Linea[]> {
-    const result = await this.repository.findAllListado();
-    return result;
+    if (!superlinea) {
+      throw new NotFoundException(
+        `SuperLínea con ID ${superlineaId} no encontrada.`,
+      );
+    }
   }
-
 }

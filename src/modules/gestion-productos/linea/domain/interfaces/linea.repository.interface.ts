@@ -5,7 +5,6 @@ import { Linea } from '../entities/linea.entity';
 import { AuditoriaDto } from 'src/modules/gestion-sistema/auditoria/dto/auditoria.dto';
 
 export interface ILineaRepository {
-
   create(data: CreateLineaDto): Promise<Linea>;
   findAllFor(denominacion: string): Promise<Linea[]>;
   findAllListado(): Promise<Linea[]>;
@@ -17,13 +16,19 @@ export interface ILineaRepository {
     denominacion: string,
     skip: number,
     take: number,
-    incluirEliminados: boolean
-  ): Promise<{ data: Linea[]; total: number } >;
+    incluirEliminados: boolean,
+    superlineaId?: number,
+  ): Promise<{ data: Linea[]; total: number }>;
+  findAgrupadasPorSuperlinea(
+    incluirEliminados: boolean,
+    superlineaId?: number,
+  ): Promise<Linea[]>;
 
-  findByIdConAuditoria(id: number):  Promise<AuditoriaDto | null> ;
-  update(
-    id: number,
-    data: UpdateLineaDto,
-  ): Promise<Linea>;
-  remove(data: Linea,usuario:Usuario): Promise<Linea>;
+  findByIdConAuditoria(id: number): Promise<AuditoriaDto | null>;
+  update(id: number, data: UpdateLineaDto): Promise<Linea>;
+  remove(data: Linea, usuario: Usuario): Promise<Linea>;
+  reassignSuperlinea(
+    superlineaOrigenId: number,
+    superlineaDestinoId: number,
+  ): Promise<number>;
 }

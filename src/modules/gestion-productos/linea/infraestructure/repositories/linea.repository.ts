@@ -17,21 +17,17 @@ export class LineaRepository implements ILineaRepository {
   private readonly ENTITY_NAME = 'Linea';
 
   async create(data: CreateLineaDto): Promise<Linea> {
-    this.logger.log(`Creando un nuevo `);
+    this.logger.log(`Creando un nuevo ${this.ENTITY_NAME}`);
     try {
       return await this.persistenceService.create(data);
     } catch (error) {
-
       throw new DatabaseConnectionException(
         'No se pudo crear la entidad en la base de datos.',
       );
     }
   }
 
-  async update(
-    id: number,
-    data: UpdateLineaDto,
-  ): Promise<Linea> {
+  async update(id: number, data: UpdateLineaDto): Promise<Linea> {
     return this.persistenceService.update(id, data);
   }
 
@@ -39,21 +35,29 @@ export class LineaRepository implements ILineaRepository {
     denominacion: string,
     skip = 0,
     take = 10,
-    incluirEliminados=false,
+    incluirEliminados = false,
+    superlineaId?: number,
   ): Promise<{ data: Linea[]; total: number }> {
-    this.logger.log(
-      `Buscando 333o ${denominacion}  skip=${skip}, take=${take}`,
-    );
     return this.persistenceService.findByDenominacionFiltered(
       denominacion,
       skip,
       take,
       incluirEliminados,
+      superlineaId,
+    );
+  }
+
+  async findAgrupadasPorSuperlinea(
+    incluirEliminados: boolean,
+    superlineaId?: number,
+  ): Promise<Linea[]> {
+    return this.persistenceService.findAgrupadasPorSuperlinea(
+      incluirEliminados,
+      superlineaId,
     );
   }
 
   async findAllFor(denominacion: string): Promise<Linea[]> {
-    this.logger.log(`Buscando 333o `);
     return this.persistenceService.findAllFor(denominacion);
   }
 
@@ -62,8 +66,7 @@ export class LineaRepository implements ILineaRepository {
   }
 
   async findOne(id: number): Promise<Linea | null> {
-    const entity = await this.persistenceService.findOne(id);
-    return entity;
+    return this.persistenceService.findOne(id);
   }
 
   async findByDenominacion(denominacion: string): Promise<Linea | null> {
@@ -79,23 +82,28 @@ export class LineaRepository implements ILineaRepository {
   }
 
   async findByDenominacionWith(denominacion: string): Promise<Linea | null> {
-    const entity =
-      await this.persistenceService.findByDenominacionWith(denominacion);
-    return entity;
+    return this.persistenceService.findByDenominacionWith(denominacion);
   }
 
   async remove(data: Linea, usuario: Usuario): Promise<Linea> {
-    const entity = this.persistenceService.remove(data, usuario);
-    return entity;
+    return this.persistenceService.remove(data, usuario);
   }
 
   async findByIdConAuditoria(id: number): Promise<AuditoriaDto | null> {
-    const entity = await this.persistenceService.findByIdConAuditoria(id);
-    return entity;
+    return this.persistenceService.findByIdConAuditoria(id);
   }
-  
-  async findAllListado(): Promise<Linea[]>{
+
+  async findAllListado(): Promise<Linea[]> {
     return this.persistenceService.findAllListado();
   }
-  
+
+  async reassignSuperlinea(
+    superlineaOrigenId: number,
+    superlineaDestinoId: number,
+  ): Promise<number> {
+    return this.persistenceService.reassignSuperlinea(
+      superlineaOrigenId,
+      superlineaDestinoId,
+    );
+  }
 }
