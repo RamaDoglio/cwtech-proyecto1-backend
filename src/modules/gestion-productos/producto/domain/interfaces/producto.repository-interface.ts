@@ -19,6 +19,7 @@ export interface IProductoRepository {
   findByIdWithoutRelations(id: number): Promise<Producto | null>;
   findByDenominacion(denominacion: string): Promise<Producto | null>;
   findByIds(ids: number[]): Promise<Producto[]>;
+  findActivosParaAjustePrecio(lineaId?: number): Promise<Producto[]>;
 
   // ===== Consultas paginadas =====
   findBy(

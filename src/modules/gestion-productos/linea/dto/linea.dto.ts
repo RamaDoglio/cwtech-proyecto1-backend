@@ -39,14 +39,34 @@ export class LineaDto {
 
   @ApiProperty({
     example: 1,
+    description: 'ID de la SuperLínea a la que pertenece la Línea',
+  })
+  @Type(() => Number)
+  @IsInt()
+  @IsNotEmpty()
+  superlineaId: number;
+
+  @ApiProperty({
+    example: 'Bebidas',
+    description: 'Denominación de la SuperLínea a la que pertenece la Línea',
+  })
+  @IsOptional()
+  @IsString()
+  superlineaDenominacion?: string;
+
+  @ApiProperty({
+    example: 1,
     description: 'de sistema no se puede editar ni eliminar',
   })
   @Type(() => Number)
   @IsInt()
   sistema: number;
 
-  @ApiProperty({ example: null, description: 'Fecha de eliminación (null si está activa)', nullable: true })
+  @ApiProperty({
+    example: null,
+    description: 'Fecha de eliminación (null si está activa)',
+    nullable: true,
+  })
   @IsOptional()
   deletedAt: string | null;
-
 }

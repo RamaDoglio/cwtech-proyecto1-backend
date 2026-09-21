@@ -74,10 +74,10 @@ export class ClienteValidationHelper {
     idActual?: number,
   ): Promise<void> {
     if (!cuit?.trim()) return;
-
+  
     const existente = await this.clienteRepository.findByCuit(cuit.trim());
     if (existente && existente.id !== idActual) {
-      throw new BadRequestException(`Ya existe un cliente con CUIT ${cuit}`);
+      throw new ConflictException(`Ya existe un cliente con CUIT ${cuit}`);  // ← cambio
     }
   }
 
@@ -89,7 +89,7 @@ export class ClienteValidationHelper {
 
     const existente = await this.clienteRepository.findByDni(dni.trim());
     if (existente && existente.id !== idActual) {
-      throw new BadRequestException(`Ya existe un cliente con Dni ${dni}`);
+      throw new ConflictException(`Ya existe un cliente con DNI ${dni}`);
     }
   }
 

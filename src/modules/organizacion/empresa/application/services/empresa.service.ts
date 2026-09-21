@@ -1,4 +1,4 @@
-import { ConflictException, Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { CreateEmpresaDto } from '../../dto/create-empresa.dto';
 import { UpdateEmpresaDto } from '../../dto/update-empresa.dto';
 import { Empresa } from '../../domain/entities/empresa.entity';
@@ -41,7 +41,7 @@ export class EmpresaService {
 
     const categoriaIVAId = dto.condicionIVAId;
     if (categoriaIVAId === undefined) {
-      throw new Error('Condicion IVA ID is required');
+      throw new BadRequestException('Condicion IVA ID is required');
     }
 
     const categoriaIVA = await this.condicionIvaService.findEntityById(categoriaIVAId);

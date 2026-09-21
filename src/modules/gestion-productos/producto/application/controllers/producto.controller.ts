@@ -39,10 +39,15 @@ import { NormalizeDenominacionSearchPipe } from 'src/modules/common/pipes/normal
 import { DenominacionBusquedaDto } from 'src/modules/common/dto/denominacion-busqueda.dto';
 import { SearchProductoRapidoDto } from '../../dto/search-producto-rapido.dto';
 import { ProductoService } from '../services/producto.service';
+import { AjustarStockManualDto} from '../../dto/ajustar-stock-manual.dto';
+import { CambioPreciosMasivoDto } from '../../dto/cambio-precios-masivo.dto';
+import { AjustarStockManualResponseDto} from '../../dto/ajustar-stock-manual.dto';
 import {
-  AjustarStockManualDto,
-  AjustarStockManualResponseDto,
-} from '../../dto/ajustar-stock-manual.dto';
+  CambiarPrecioDto,
+  CambiarPrecioResponseDto,
+} from '../../dto/cambiar-precio.dto';
+import { SearchHistorialPrecioDto } from '../../dto/search-historial-precio.dto';
+
 
 @ApiTags('Gestion Productos')
 @Controller('producto')
@@ -120,15 +125,15 @@ export class ProductoController {
   async search(@Query() dto: SearchProductoPaginationWithDto) {
     const {
       denominacion = '',
-      codProveedorExacto,
-      codigoProveedor,
-      codigoReferencia,
+      codProveedorExacto = false,
+      codigoProveedor = '',
+      codigoReferencia = '',
       marcaId,
       lineaId,
       proveedorId,
-      conStock,
-      skip,
-      take,
+      conStock = false,
+      skip = 0,
+      take = 10,
     } = dto;
     return this.service.findBy(
       denominacion,
@@ -154,6 +159,20 @@ export class ProductoController {
   @Roles('Root', 'Administrador', 'Empleado')
   async geLineaDelProducto(@Param('id', ParseIntPipe) id: number) {
     return this.service.buscarLineaDesdeProducto(id);
+  }
+
+  @Post('cambio-precios-masivo/preview')
+  @Roles('Root', 'Administrador', 'Admin', 'Vendedor')
+  async previewCambioMasivo(@Body() dto: CambioPreciosMasivoDto) {
+    this.logger.log(`Calculando preview de ajuste masivo para ${dto.alcance}`);
+    return this.service.previewCambioMasivo(dto);
+  }
+
+  @Post('ajustar-precios-masivo')
+  @Roles('Root', 'Administrador', 'Admin', 'Vendedor')
+  async aplicarCambioMasivo(@Body() dto: CambioPreciosMasivoDto) {
+    this.logger.log(`Aplicando ajuste masivo de precios para ${dto.alcance}`);
+    return this.service.aplicarCambioMasivo(dto);
   }
 
   @Get(':id')
@@ -232,5 +251,52 @@ export class ProductoController {
     @Body() dto: AjustarStockManualDto,
   ) {
     return this.service.ajustarStockManual(id, dto);
+  }
+
+  @Post(':id/cambiar-precio')
+  @HttpCode(HttpStatus.OK)
+  @Roles('Root', 'Administrador')
+  @ApiOperation({
+    summary: 'Cambiar el precio de un producto con motivo',
+    description:
+      'Actualiza el precio de venta y registra el historial (precio anterior, nuevo, fecha, motivo) en una única transacción.',
+  })
+  @ApiParam({
+    name: 'id',
+    type: Number,
+    description: 'ID del producto a modificar.',
+  })
+  @ApiBody({ type: CambiarPrecioDto })
+  @ApiOkResponse({
+    description: 'Precio actualizado y registro de historial creado.',
+    type: CambiarPrecioResponseDto,
+  })
+  @ApiBadRequestResponse({
+    description: 'Solicitud inválida: precio menor o igual a 0, o motivo faltante.',
+  })
+  @ApiNotFoundResponse({ description: 'Producto o usuario inexistente.' })
+  async cambiarPrecio(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: CambiarPrecioDto,
+  ): Promise<CambiarPrecioResponseDto> {
+    return this.service.cambiarPrecio(id, dto);
+  }
+
+  @Get(':id/historial-precios')
+  @Roles('Root', 'Administrador')
+  @ApiOperation({
+    summary: 'Consultar el historial de cambios de precio de un producto',
+  })
+  @ApiParam({
+    name: 'id',
+    type: Number,
+    description: 'ID del producto a consultar.',
+  })
+  @ApiNotFoundResponse({ description: 'Producto inexistente.' })
+  async findHistorialPrecios(
+    @Param('id', ParseIntPipe) id: number,
+    @Query() dto: SearchHistorialPrecioDto,
+  ) {
+    return this.service.findHistorialPrecios(id, dto.skip, dto.take);
   }
 }

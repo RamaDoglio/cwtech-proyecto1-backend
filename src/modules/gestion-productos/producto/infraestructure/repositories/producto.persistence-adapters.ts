@@ -237,6 +237,18 @@ export class ProductoPersistenceAdapter implements IProductoRepository {
     return { data, total };
   }
 
+  async findActivosParaAjustePrecio(lineaId?: number): Promise<Producto[]> {
+    const query = this.repository
+      .createQueryBuilder('producto')
+      .where('producto.deletedAt IS NULL');
+
+    if (lineaId) {
+      query.andWhere('producto.linea_id = :lineaId', { lineaId });
+    }
+
+    return query.getMany();
+  }
+
   async findByRapido(
     codigo: string,
     exacto: boolean,

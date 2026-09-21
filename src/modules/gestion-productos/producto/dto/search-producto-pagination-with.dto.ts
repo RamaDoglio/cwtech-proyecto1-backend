@@ -8,25 +8,29 @@ export class SearchProductoPaginationWithDto {
 
   @IsOptional()
   @IsString()
-  codigoProveedor: string;
- 
+  codigoProveedor?: string;
+
   @IsOptional()
   @IsString()
-  codigoReferencia: string;
+  codigoReferencia?: string;
   
   @Transform(({ value }) => {
-    if (value === 'true') return true;
-    if (value === 'false') return false;
-    return undefined;
+    if (value === undefined || value === null || value === '') return false;
+    if (value === 'true' || value === true || value === 1 || value === '1') return true;
+    if (value === 'false' || value === false || value === 0 || value === '0') return false;
+    return value;
   })
+  @IsOptional()
   @IsBoolean()
   codReferenciaExacto: boolean = false;
 
   @Transform(({ value }) => {
-    if (value === 'true') return true;
-    if (value === 'false') return false;
-    return undefined;
+    if (value === undefined || value === null || value === '') return false;
+    if (value === 'true' || value === true || value === 1 || value === '1') return true;
+    if (value === 'false' || value === false || value === 0 || value === '0') return false;
+    return value;
   })
+  @IsOptional()
   @IsBoolean()
   codProveedorExacto: boolean = false;
 

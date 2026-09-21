@@ -40,19 +40,16 @@ export class LineaPersistenceAdapter
     const repo = this.uow.getRepository(Linea);
 
     try {
-      // Creamos la entidad sin sublíneas
       const nuevaEntity = repo.create({
         denominacion: data.denominacion,
         utilizaStockMinimo: data.utilizaStockMinimo,
         stockMinimo: data.stockMinimo,
         usuarioCreatedId: data.usuarioCreatedId,
         observacion: data.observacion,
+        superlineaId: data.superlineaId,
       });
 
-      const entityGuardada = await repo.save(nuevaEntity);
-
-
-      return entityGuardada;
+      return await repo.save(nuevaEntity);
     } catch (error) {
       this.logger.error(`Error al conectar con la base de datos: ${error}`);
       throw new DatabaseConnectionException(
@@ -62,41 +59,33 @@ export class LineaPersistenceAdapter
   }
 
   @Transactional()
-  async update(
-    id: number,
-    data: UpdateLineaDto,
-  ): Promise<Linea> {
+  async update(id: number, data: UpdateLineaDto): Promise<Linea> {
     const repo = this.uow.getRepository(Linea);
 
-    const entity = await repo.findOne({
-      where: { id }
-    });
+    const entity = await repo.findOne({ where: { id } });
 
     if (!entity) {
       throw new NotFoundException(`Línea con ID ${id} no encontrada`);
     }
 
-    // Actualizar datos simples
     entity.denominacion = data.denominacion ?? entity.denominacion;
     entity.utilizaStockMinimo = data.utilizaStockMinimo;
     entity.stockMinimo = data.stockMinimo ?? 0;
     entity.usuarioCreatedId = data.usuarioCreatedId;
+    entity.observacion = data.observacion ?? entity.observacion;
+    entity.superlineaId = data.superlineaId ?? entity.superlineaId;
 
-    // Guardar entidad antes de procesar sublíneas (opcional según lógica de negocio)
-    const entityActualizada = await repo.save(entity);
-
-    return entityActualizada;
+    return await repo.save(entity);
   }
 
   async findOne(id: number): Promise<Linea | null> {
     try {
       const entity = await this.repository
         .createQueryBuilder('linea')
+        .leftJoinAndSelect('linea.superlinea', 'superlinea')
         .where('linea.id = :id', { id })
         .andWhere('linea.deletedAt IS NULL')
         .getOne();
-
-      this.logger.warn(`Entidad obtenida: ${JSON.stringify(entity)}`);
 
       if (!entity) {
         throw new EntityNotFoundException('Entidad no encontrada');
@@ -117,6 +106,7 @@ export class LineaPersistenceAdapter
   async findAllListado(): Promise<Linea[]> {
     try {
       const query = this.baseQuery();
+      query.leftJoinAndSelect('linea.superlinea', 'superlinea');
       QueryBuilderHelper.applyOrder(query, this.ALIAS, 'denominacion', 'ASC');
       return await query.getMany();
     } catch (error) {
@@ -126,13 +116,12 @@ export class LineaPersistenceAdapter
 
   async findByDenominacion(denominacion: string): Promise<Linea | null> {
     try {
-      const entity = await this.repository
+      return await this.repository
         .createQueryBuilder('linea')
+        .leftJoinAndSelect('linea.superlinea', 'superlinea')
         .where('linea.denominacion = :denominacion', { denominacion })
         .andWhere('linea.deletedAt IS NULL')
         .getOne();
-
-      return entity;
     } catch (error) {
       throw new DatabaseConnectionException(
         'Error al conectar con la base de datos.',
@@ -149,7 +138,7 @@ export class LineaPersistenceAdapter
 
       const entity = await this.repository
         .createQueryBuilder('linea')
-        .withDeleted() //
+        .withDeleted()
         .where('UPPER(linea.denominacion) = :denominacion', {
           denominacion: normalizada,
         })
@@ -162,9 +151,6 @@ export class LineaPersistenceAdapter
         return null;
       }
 
-      this.logger.log(
-        `✅ Encontrada línea (puede estar activa o eliminada): ID=${entity.id}, denominación=${entity.denominacion}`,
-      );
       return entity;
     } catch (error) {
       handleDatabaseError(this.logger, 'findByDenominacionWith', error);
@@ -176,14 +162,20 @@ export class LineaPersistenceAdapter
     skip = 0,
     take = 10,
     incluirEliminados = false,
+    superlineaId?: number,
   ): Promise<{ data: Linea[]; total: number }> {
     try {
-      const query = this.baseQuery(incluirEliminados)
+      const query = this.baseQuery(incluirEliminados);
+      query.leftJoinAndSelect('linea.superlinea', 'superlinea');
 
       if (denominacion) {
         query.andWhere(`UPPER(${this.ALIAS}.denominacion) LIKE :denominacion`, {
           denominacion: `%${denominacion.toUpperCase()}%`,
         });
+      }
+
+      if (superlineaId) {
+        query.andWhere('linea.superlineaId = :superlineaId', { superlineaId });
       }
 
       QueryBuilderHelper.applyOrder(query, this.ALIAS, 'denominacion', 'ASC');
@@ -192,13 +184,35 @@ export class LineaPersistenceAdapter
       const [data, total] = await query.getManyAndCount();
       return { data, total };
     } catch (error) {
-      handleDatabaseError(this.logger, 'findBy', error);
+      handleDatabaseError(this.logger, 'findByDenominacionFiltered', error);
+    }
+  }
+
+  async findAgrupadasPorSuperlinea(
+    incluirEliminados: boolean,
+    superlineaId?: number,
+  ): Promise<Linea[]> {
+    try {
+      const query = this.baseQuery(incluirEliminados);
+      query.leftJoinAndSelect('linea.superlinea', 'superlinea');
+
+      if (superlineaId) {
+        query.andWhere('linea.superlineaId = :superlineaId', { superlineaId });
+      }
+
+      query.orderBy('superlinea.denominacion', 'ASC');
+      query.addOrderBy('linea.denominacion', 'ASC');
+
+      return await query.getMany();
+    } catch (error) {
+      handleDatabaseError(this.logger, 'findAgrupadasPorSuperlinea', error);
     }
   }
 
   async findAllFor(denominacion: string): Promise<Linea[]> {
     try {
-      const query = this.baseQuery()
+      const query = this.baseQuery();
+      query.leftJoinAndSelect('linea.superlinea', 'superlinea');
       query.andWhere('UPPER(linea.denominacion) LIKE :denominacion', {
         denominacion: `%${denominacion.toUpperCase()}%`,
       });
@@ -208,15 +222,16 @@ export class LineaPersistenceAdapter
     } catch (error) {
       handleDatabaseError(this.logger, 'findAllFor', error);
     }
-
   }
 
   async findAllSinSistemaFor(denominacion: string): Promise<Linea[]> {
     try {
       const query = this.repository
         .createQueryBuilder('linea')
+        .leftJoinAndSelect('linea.superlinea', 'superlinea')
         .where('linea.deletedAt IS NULL')
         .andWhere('linea.sistema = :sistema', { sistema: 0 });
+
       if (denominacion && denominacion.trim() !== '') {
         query.andWhere('UPPER(linea.denominacion) LIKE :denominacion', {
           denominacion: `%${denominacion.toUpperCase()}%`,
@@ -274,8 +289,6 @@ export class LineaPersistenceAdapter
         .where('linea.id = :id', { id })
         .getRawOne();
 
-      console.debug('RAW RESULTADO:', raw);
-
       if (!raw) return null;
 
       return {
@@ -297,7 +310,7 @@ export class LineaPersistenceAdapter
         usuarioDeleted: raw.usuarioDeleted_nombre ?? '',
       };
     } catch (error) {
-      console.error('ERROR EN findByIdConAuditoria:', error);
+      this.logger.error(`ERROR EN findByIdConAuditoria: ${error}`);
       throw new DatabaseConnectionException(
         'Error al conectar con la base de datos.',
       );
