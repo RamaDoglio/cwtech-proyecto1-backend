@@ -6,43 +6,27 @@ import {
   Matches,
   IsOptional,
   IsInt,
-  IsBoolean,
-  Min,
 } from 'class-validator';
 
 import { ApiProperty } from '@nestjs/swagger';
 
-export class CreateLineaDto {
+export class CreateSuperLineaDto {
   @Transform(({ value }) => value.trim().toLowerCase())
   @IsString({ message: 'La denominación debe ser una cadena de texto.' })
   @IsNotEmpty({ message: 'La denominación no puede estar vacía.' })
-  @MaxLength(255, { message: 'La denominación no puede estar vacía.' })
+  @MaxLength(255, { message: 'La denominación no puede superar los 255 caracteres.' })
   @Matches(/^[A-Za-z0-9 áéíóúÁÉÍÓÚñÑ]+$/, {
     message: 'La denominación solo puede contener letras, números y espacios.',
   })
   denominacion: string;
 
   @IsOptional()
-  @IsInt()
-  stockMinimo?: number;
-
-  @IsBoolean()
-  utilizaStockMinimo: boolean;
-
-  @IsOptional()
   @IsString()
   observacion?: string;
-
-  createdAt?: Date;
 
   @IsNotEmpty({ message: 'El usuarioCreatedId es obligatorio.' })
   @IsInt({ message: 'El usuarioCreatedId debe ser un número entero.' })
   usuarioCreatedId: number;
-
-  @IsNotEmpty({ message: 'La SuperLínea es obligatoria.' })
-  @IsInt({ message: 'La SuperLínea debe ser un número entero.' })
-  @Min(1, { message: 'La SuperLínea debe ser mayor a cero.' })
-  superlineaId: number;
 
   @ApiProperty({
     example: null,
