@@ -1,4 +1,4 @@
-import { forwardRef, Module } from '@nestjs/common';
+import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 
@@ -12,19 +12,15 @@ import { SuperLineaPersistenceAdapter } from './infraestructure/repositories/sup
 import { SuperLineaRepository } from './infraestructure/repositories/superlinea.repository';
 import { SuperLineaController } from './application/controllers/superlinea.controller';
 import { SuperLineaService } from './application/services/superlinea.service';
-import { PoliticaEliminacionSuperLinea } from './services/politica-eliminacion-superlinea.service';
-import { LineaModule } from '../linea/linea.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([SuperLinea]),
-    forwardRef(() => LineaModule),
     UsuarioModule,
   ],
   controllers: [SuperLineaController],
   providers: [
     SuperLineaService,
-    PoliticaEliminacionSuperLinea,
     {
       provide: 'ISuperLineaRepository',
       useClass: SuperLineaRepository,

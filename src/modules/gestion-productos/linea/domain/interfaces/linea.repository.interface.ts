@@ -27,8 +27,4 @@ export interface ILineaRepository {
   findByIdConAuditoria(id: number): Promise<AuditoriaDto | null>;
   update(id: number, data: UpdateLineaDto): Promise<Linea>;
   remove(data: Linea, usuario: Usuario): Promise<Linea>;
-  reassignSuperlinea(
-    superlineaOrigenId: number,
-    superlineaDestinoId: number,
-  ): Promise<number>;
 }

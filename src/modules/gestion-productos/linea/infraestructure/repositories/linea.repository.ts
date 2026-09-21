@@ -97,13 +97,4 @@ export class LineaRepository implements ILineaRepository {
     return this.persistenceService.findAllListado();
   }
 
-  async reassignSuperlinea(
-    superlineaOrigenId: number,
-    superlineaDestinoId: number,
-  ): Promise<number> {
-    return this.persistenceService.reassignSuperlinea(
-      superlineaOrigenId,
-      superlineaDestinoId,
-    );
-  }
 }

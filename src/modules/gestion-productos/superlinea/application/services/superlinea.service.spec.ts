@@ -3,7 +3,6 @@ import { Test, TestingModule } from '@nestjs/testing';
 
 import { SuperLineaService } from './superlinea.service';
 import { ISuperLineaRepository } from '../../domain/interfaces/superlinea.repository.interface';
-import { PoliticaEliminacionSuperLinea } from '../../services/politica-eliminacion-superlinea.service';
 import { UsuarioService } from 'src/modules/gestion-usuario/usuario/application/services/usuario.service';
 import { SuperLinea } from '../../domain/entities/superlinea.entity';
 
@@ -19,10 +18,7 @@ const mockRepository = {
   findAllListado: jest.fn(),
   findByIdConAuditoria: jest.fn(),
   remove: jest.fn(),
-};
-
-const mockPoliticaEliminacion = {
-  reasignarLineas: jest.fn(),
+  removeAndReassign: jest.fn(),
 };
 
 const mockUsuarioService = {
@@ -49,10 +45,6 @@ describe('SuperLineaService', () => {
       providers: [
         SuperLineaService,
         { provide: 'ISuperLineaRepository', useValue: mockRepository },
-        {
-          provide: PoliticaEliminacionSuperLinea,
-          useValue: mockPoliticaEliminacion,
-        },
         { provide: UsuarioService, useValue: mockUsuarioService },
       ],
     }).compile();
@@ -158,16 +150,15 @@ describe('SuperLineaService', () => {
         total: 1,
       });
       mockUsuarioService.findOne.mockResolvedValue({ id: 1 });
-      mockPoliticaEliminacion.reasignarLineas.mockResolvedValue(3);
-      mockRepository.remove.mockResolvedValue(aEliminar);
+      mockRepository.removeAndReassign.mockResolvedValue(3);
 
       const result = await service.remove(5, 1);
 
-      expect(mockPoliticaEliminacion.reasignarLineas).toHaveBeenCalledWith(
-        5,
+      expect(mockRepository.removeAndReassign).toHaveBeenCalledWith(
+        aEliminar,
+        { id: 1 },
         99,
       );
-      expect(mockRepository.remove).toHaveBeenCalled();
       expect(result).toBeDefined();
     });
 
@@ -188,7 +179,7 @@ describe('SuperLineaService', () => {
         ConflictException,
       );
       expect(mockRepository.remove).not.toHaveBeenCalled();
-      expect(mockPoliticaEliminacion.reasignarLineas).not.toHaveBeenCalled();
+      expect(mockRepository.removeAndReassign).not.toHaveBeenCalled();
     });
 
     it('rechaza eliminar una SuperLínea de sistema', async () => {

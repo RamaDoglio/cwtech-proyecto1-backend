@@ -65,7 +65,7 @@ export class LineaService {
     if (dto.denominacion)
       await this.checkDenominacionExists(dto.denominacion, id);
 
-    if (dto.superlineaId)
+    if (dto.superlineaId !== undefined)
       await this.checkSuperlineaExists(dto.superlineaId);
 
     const entity = await this.repository.update(id, dto);

@@ -1,6 +1,5 @@
 import {
   ConflictException,
-  forwardRef,
   Inject,
   Injectable,
   Logger,
@@ -17,7 +16,6 @@ import { CreateSuperLineaDto } from '../../dto/create-superlinea.dto';
 import { UpdateSuperLineaDto } from '../../dto/update-superlinea.dto';
 import { SuperLineaDto } from '../../dto/superlinea.dto';
 import { SuperLineaMapper } from '../../mappers/superlinea.mapper';
-import { PoliticaEliminacionSuperLinea } from '../../services/politica-eliminacion-superlinea.service';
 import { SuperLinea } from '../../domain/entities/superlinea.entity';
 
 @Injectable()
@@ -30,9 +28,6 @@ export class SuperLineaService {
   constructor(
     @Inject('ISuperLineaRepository')
     private readonly repository: ISuperLineaRepository,
-
-    @Inject(forwardRef(() => PoliticaEliminacionSuperLinea))
-    private readonly politicaEliminacion: PoliticaEliminacionSuperLinea,
 
     private readonly usuarioService: UsuarioService,
   ) {}
@@ -163,16 +158,15 @@ export class SuperLineaService {
       throw new NotFoundException(`Usuario con ID ${usuarioId} no encontrado.`);
     }
 
-    const reasignadas = await this.politicaEliminacion.reasignarLineas(
-      id,
+    const reasignadas = await this.repository.removeAndReassign(
+      entity,
+      usuario,
       sinClasificar.id,
     );
 
     this.logger.log(
       `Reasignadas ${reasignadas} Líneas desde SuperLínea ${id} a "Sin clasificar" (ID ${sinClasificar.id}).`,
     );
-
-    await this.repository.remove(entity, usuario);
 
     return MessageFrontUtils.createSimple(
       `${this.ENTITY_NAME}`,

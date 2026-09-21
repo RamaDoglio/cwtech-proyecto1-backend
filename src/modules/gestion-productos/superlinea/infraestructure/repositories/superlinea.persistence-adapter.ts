@@ -17,6 +17,7 @@ import { SuperLinea } from '../../domain/entities/superlinea.entity';
 import { ISuperLineaRepository } from '../../domain/interfaces/superlinea.repository.interface';
 import { CreateSuperLineaDto } from '../../dto/create-superlinea.dto';
 import { UpdateSuperLineaDto } from '../../dto/update-superlinea.dto';
+import { Linea } from '../../../linea/domain/entities/linea.entity';
 
 @Injectable()
 export class SuperLineaPersistenceAdapter
@@ -215,6 +216,28 @@ export class SuperLineaPersistenceAdapter
     await repo.save(entity);
 
     return entity;
+  }
+
+  async removeAndReassign(
+    entity: SuperLinea,
+    usuario: Usuario,
+    superlineaDestinoId: number,
+  ): Promise<number> {
+    return this.dataSource.transaction(async (manager) => {
+      const result = await manager
+        .createQueryBuilder()
+        .update(Linea)
+        .set({ superlineaId: superlineaDestinoId })
+        .where('superlinea_id = :origen', { origen: entity.id })
+        .andWhere('deletedAt IS NULL')
+        .execute();
+
+      entity.deletedAt = new Date();
+      entity.usuarioDeletedId = usuario.id;
+      await manager.save(entity);
+
+      return result.affected ?? 0;
+    });
   }
 
   async findByIdConAuditoria(id: number): Promise<AuditoriaDto | null> {

@@ -1,5 +1,6 @@
 import { NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
+import { validate } from 'class-validator';
 
 import { LineaService } from './linea.service';
 import { ILineaRepository } from '../../domain/interfaces/linea.repository.interface';
@@ -7,6 +8,7 @@ import { PoliticaEliminacionLinea } from '../../domain/services/politica-elimina
 import { UsuarioService } from '../../../../gestion-usuario/usuario/application/services/usuario.service';
 import { Linea } from '../../domain/entities/linea.entity';
 import { SuperLinea } from '../../../superlinea/domain/entities/superlinea.entity';
+import { CreateLineaDto } from '../../dto/create-linea.dto';
 
 // ==================== MOCKS ====================
 
@@ -91,6 +93,36 @@ describe('LineaService', () => {
 
   // ==================== create ====================
 
+  describe('validación de SuperLínea', () => {
+    const dtoValido = {
+      denominacion: 'gaseosas',
+      superlineaId: 1,
+      utilizaStockMinimo: false,
+      usuarioCreatedId: 1,
+    };
+
+    it('rechaza crear una Línea sin SuperLínea', async () => {
+      const { superlineaId, ...dtoSinSuperlinea } = dtoValido;
+      const errors = await validate(
+        Object.assign(new CreateLineaDto(), dtoSinSuperlinea),
+      );
+
+      expect(errors.some((error) => error.property === 'superlineaId')).toBe(
+        true,
+      );
+    });
+
+    it('rechaza un identificador de SuperLínea menor a uno', async () => {
+      const errors = await validate(
+        Object.assign(new CreateLineaDto(), { ...dtoValido, superlineaId: 0 }),
+      );
+
+      expect(errors.some((error) => error.property === 'superlineaId')).toBe(
+        true,
+      );
+    });
+  });
+
   describe('create', () => {
     it('crea una Línea con SuperLínea válida', async () => {
       const dto = {
@@ -161,6 +193,19 @@ describe('LineaService', () => {
       await expect(service.update(1, dto)).rejects.toBeInstanceOf(
         NotFoundException,
       );
+      expect(mockRepository.update).not.toHaveBeenCalled();
+    });
+
+    it('valida el ID cero antes de actualizar la asociación', async () => {
+      const dto = { superlineaId: 0, usuarioUpdatedId: 1 } as any;
+
+      mockRepository.findOne.mockResolvedValue(buildLinea());
+      mockSuperLineaRepository.findOne.mockResolvedValue(null);
+
+      await expect(service.update(1, dto)).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
+      expect(mockSuperLineaRepository.findOne).toHaveBeenCalledWith(0);
       expect(mockRepository.update).not.toHaveBeenCalled();
     });
   });

@@ -20,4 +20,9 @@ export interface ISuperLineaRepository {
   findByIdConAuditoria(id: number): Promise<AuditoriaDto | null>;
   update(id: number, data: UpdateSuperLineaDto): Promise<SuperLinea>;
   remove(data: SuperLinea, usuario: Usuario): Promise<SuperLinea>;
+  removeAndReassign(
+    data: SuperLinea,
+    usuario: Usuario,
+    superlineaDestinoId: number,
+  ): Promise<number>;
 }

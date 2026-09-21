@@ -7,6 +7,7 @@ import {
   IsOptional,
   IsInt,
   IsBoolean,
+  Min,
 } from 'class-validator';
 
 import { ApiProperty } from '@nestjs/swagger';
@@ -40,6 +41,7 @@ export class CreateLineaDto {
 
   @IsNotEmpty({ message: 'La SuperLínea es obligatoria.' })
   @IsInt({ message: 'La SuperLínea debe ser un número entero.' })
+  @Min(1, { message: 'La SuperLínea debe ser mayor a cero.' })
   superlineaId: number;
 
   @ApiProperty({

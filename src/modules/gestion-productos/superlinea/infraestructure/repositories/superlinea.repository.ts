@@ -84,6 +84,18 @@ export class SuperLineaRepository implements ISuperLineaRepository {
     return this.persistenceService.remove(data, usuario);
   }
 
+  async removeAndReassign(
+    data: SuperLinea,
+    usuario: Usuario,
+    superlineaDestinoId: number,
+  ): Promise<number> {
+    return this.persistenceService.removeAndReassign(
+      data,
+      usuario,
+      superlineaDestinoId,
+    );
+  }
+
   async findByIdConAuditoria(id: number): Promise<AuditoriaDto | null> {
     return this.persistenceService.findByIdConAuditoria(id);
   }

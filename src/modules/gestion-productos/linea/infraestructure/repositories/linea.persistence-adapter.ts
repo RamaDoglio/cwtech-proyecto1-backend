@@ -257,29 +257,6 @@ export class LineaPersistenceAdapter
     return entity;
   }
 
-  @Transactional()
-  async reassignSuperlinea(
-    superlineaOrigenId: number,
-    superlineaDestinoId: number,
-  ): Promise<number> {
-    try {
-      const result = await this.repository
-        .createQueryBuilder()
-        .update(Linea)
-        .set({ superlineaId: superlineaDestinoId })
-        .where('superlinea_id = :origen', { origen: superlineaOrigenId })
-        .andWhere('deletedAt IS NULL')
-        .execute();
-
-      return result.affected ?? 0;
-    } catch (error) {
-      this.logger.error(`Error al reasignar Líneas: ${error}`);
-      throw new DatabaseConnectionException(
-        'Error al reasignar Líneas en la base de datos.',
-      );
-    }
-  }
-
   async findByIdConAuditoria(id: number): Promise<AuditoriaDto | null> {
     try {
       const raw = await this.repository
