@@ -216,6 +216,9 @@ envases y la estrategia de migración.
 - **Autor/a que condujo la sesión:** —
 - **Link a la conversación:** no disponible (CLI)
 
+> La decisión de dejar el envase afuera de la denominación se revirtió el mismo día: ver
+> [la entrada de corrección](#2026-09-22-pa-031--el-envase-va-incluido-en-la-denominación-automática).
+
 ### Prompt
 Implementar CR-005 tal como está redactada en la tarjeta: al crear un Producto con Marca, Línea y
 Presentación válidas, generar automáticamente la Denominación como "Marca + Línea + Presentación";
@@ -302,3 +305,63 @@ como se propusieron, sin cambios sobre lo implementado.
   se armó con un `precio` explícito en el fixture para no pisar ese camino roto.
 - **Pendiente:** prueba manual contra el backend local (no se levantó la app en esta sesión) y la
   tarjeta del frontend que consume el flag nuevo.
+
+---
+
+## [2026-09-22] PA-031 — El envase va incluido en la denominación automática
+
+- **Tarjeta / CR:** PA-031 (CR-005 / US-05). Corrige la entrada anterior de este mismo día
+  ([Denominación automática al alta del producto](#2026-09-22-pa-031--denominación-automática-al-alta-del-producto)).
+- **Herramienta:** Claude Sonnet 5 vía Claude Code
+- **Autor/a que condujo la sesión:** —
+- **Link a la conversación:** no disponible (CLI)
+
+### Prompt
+El usuario marcó como incorrecta la decisión de dejar el envase afuera de la denominación
+autogenerada: con Marca+Línea+contenido solamente, una Coca-Cola de 500 ml en botella y otra en
+lata generan el mismo string y, como la denominación es única en todo el sistema, la segunda alta
+choca con una colisión que no es un duplicado real. Pidió corregirlo, aclarando que no hace falta
+que el resultado coincida literalmente con el ejemplo de la tarjeta de Trello.
+
+### Respuesta / propuesta de la IA
+Confirmó el caso: `Producto.generarDenominacionAutomatica` recibía `presentacion.contenido.texto()`
+("500 ml", sin envase) en vez de `presentacion.texto(envase.denominacion)` ("BOTELLA 500 ml"). Se
+corrigió el único call site, en `ProductoService.validarYPrepararCreacionConDenominacionAutomatica`.
+
+### Decisión tomada
+- La denominación automática pasa a ser `Marca + Línea + Presentación completa (envase + contenido)`,
+  ej. `"COCA-COLA GASEOSAS BOTELLA 500 ml"`. Revierte puntualmente la decisión "sin envase" de la
+  entrada anterior; el resto de esa entrada (flag explícito, `409` en colisión, generación sólo en
+  el alta) no cambia.
+- Se agregó un test nuevo que prueba explícitamente el caso que motivó la corrección: misma
+  Marca+Línea+contenido, envase distinto (botella vs. bolsa) → dos denominaciones distintas, no hay
+  colisión.
+
+### Qué se descartó y por qué
+- **Dejar el ejemplo de la tarjeta como criterio de aceptación literal:** el usuario aclaró que no
+  hace falta que coincida; prevalece la regla de negocio real (no perder la distinción entre
+  envases) por sobre el string exacto del ejemplo funcional.
+
+### Modificaciones sobre lo generado
+Ninguna: cambio de una línea (el argumento que arma el string) más su comentario, sin tocar el resto
+del flujo, los DTO ni el mapper.
+
+### Impacto
+- `producto/domain/entities/producto.entity.ts`: comentario de `generarDenominacionAutomatica`
+  actualizado; la firma del método no cambió.
+- `producto/application/services/producto.service.ts`: el call site pasa
+  `presentacion.texto(envase.denominacion)` en vez de `presentacion.contenido.texto()`.
+- `producto.service.spec.ts`: las 4 cadenas esperadas de la CR-005 pasan a incluir el envase (ej.
+  `"COCA-COLA GASEOSAS BOTELLA 500 ml"`), y se agregó un quinto test:
+  "el envase distingue productos con igual Marca+Línea+contenido (botella vs. lata no colisionan)".
+- **Contrato:** ninguno nuevo — sigue siendo el mismo campo `generarDenominacionAutomatica`, sólo
+  cambia el contenido del string que genera.
+
+### Verificación
+- `tsc --noEmit`: sin errores.
+- `producto.service.spec.ts`: 33 tests, 30 en verde (los 5 de CR-005, incluido el nuevo). Los 3 en
+  rojo son los mismos bugs preexistentes ya identificados en la entrada anterior, sin relación con
+  este cambio.
+- **Pendiente:** repetir la prueba manual end-to-end (ya hecha contra un backend local con
+  docker-compose + MySQL para la versión anterior) con el string corregido — no se volvió a levantar
+  el backend en esta sesión.

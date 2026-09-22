@@ -328,10 +328,12 @@ export class Producto {
 
   // ============================================================
   // Denominación automática — sólo al alta (CR-005). "Marca + Línea +
-  // Presentación", sin el envase (ej. "COCA-COLA GASEOSAS 500 ml"): el
-  // envase queda fuera porque así lo pide el ejemplo funcional de la
-  // tarjeta. No se usa en update: una edición posterior de marca, línea o
-  // presentación no regenera la denominación existente.
+  // Presentación", con el envase incluido (ej. "COCA-COLA GASEOSAS BOTELLA
+  // 500 ml"): sin el envase, "Coca-Cola Gaseosas 500 ml" en botella y en
+  // lata generarían el mismo string y, como la denominación es única en
+  // todo el sistema, la segunda alta fallaría por una colisión que no es
+  // un duplicado real. No se usa en update: una edición posterior de
+  // marca, línea o presentación no regenera la denominación existente.
   // ============================================================
   static generarDenominacionAutomatica(
     marcaDenominacion: string,

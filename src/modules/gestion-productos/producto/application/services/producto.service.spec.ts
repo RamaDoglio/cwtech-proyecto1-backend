@@ -852,7 +852,7 @@ describe('ProductoService', () => {
         );
       });
 
-      it('genera "Marca Línea Presentación" (sin envase) cuando generarDenominacionAutomatica es true y no se envía denominación', async () => {
+      it('genera "Marca Línea Presentación" (con envase) cuando generarDenominacionAutomatica es true y no se envía denominación', async () => {
         const { denominacion, ...altaSinDenominacion } = altaBase;
 
         await service.create({
@@ -863,9 +863,11 @@ describe('ProductoService', () => {
 
         expect(
           mockUniquenessValidator.validarDenominacionUnica,
-        ).toHaveBeenCalledWith('COCA-COLA GASEOSAS 500 ml');
+        ).toHaveBeenCalledWith('COCA-COLA GASEOSAS BOTELLA 500 ml');
         expect(mockRepository.save).toHaveBeenCalledWith(
-          expect.objectContaining({ denominacion: 'COCA-COLA GASEOSAS 500 ml' }),
+          expect.objectContaining({
+            denominacion: 'COCA-COLA GASEOSAS BOTELLA 500 ml',
+          }),
         );
       });
 
@@ -878,7 +880,37 @@ describe('ProductoService', () => {
         } as CreateProductoDto);
 
         expect(mockRepository.save).toHaveBeenCalledWith(
-          expect.objectContaining({ denominacion: 'COCA-COLA GASEOSAS 500 ml' }),
+          expect.objectContaining({
+            denominacion: 'COCA-COLA GASEOSAS BOTELLA 500 ml',
+          }),
+        );
+      });
+
+      it('el envase distingue productos con igual Marca+Línea+contenido (botella vs. lata no colisionan)', async () => {
+        const { denominacion, ...altaSinDenominacion } = altaBase;
+
+        await service.create({
+          ...altaSinDenominacion,
+          generarDenominacionAutomatica: true,
+          presentacion: { envaseId: 1, cantidad: 500, unidad: 'ml' },
+        } as CreateProductoDto);
+        await service.create({
+          ...altaSinDenominacion,
+          generarDenominacionAutomatica: true,
+          presentacion: { envaseId: 2, cantidad: 500, unidad: 'ml' },
+        } as CreateProductoDto);
+
+        expect(mockRepository.save).toHaveBeenNthCalledWith(
+          1,
+          expect.objectContaining({
+            denominacion: 'COCA-COLA GASEOSAS BOTELLA 500 ml',
+          }),
+        );
+        expect(mockRepository.save).toHaveBeenNthCalledWith(
+          2,
+          expect.objectContaining({
+            denominacion: 'COCA-COLA GASEOSAS BOLSA 500 ml',
+          }),
         );
       });
 
@@ -902,7 +934,7 @@ describe('ProductoService', () => {
         // recalcule el precio: ese camino usa la transacción de historial,
         // que en este archivo ya falla sin mockear (bug previo, no de CR-005).
         const producto = productoGuardado({
-          denominacion: 'COCA-COLA GASEOSAS 500 ml',
+          denominacion: 'COCA-COLA GASEOSAS BOTELLA 500 ml',
           precio: 115,
           ...botella500,
         });
@@ -917,7 +949,7 @@ describe('ProductoService', () => {
 
         expect(mockRepository.save).toHaveBeenCalledWith(
           expect.objectContaining({
-            denominacion: 'COCA-COLA GASEOSAS 500 ml',
+            denominacion: 'COCA-COLA GASEOSAS BOTELLA 500 ml',
             envasePresentacionId: 2,
           }),
         );

@@ -597,10 +597,14 @@ export class ProductoService {
         presentacion.envaseId,
       );
 
+    // El envase va incluido: sin él, la misma Marca+Línea+contenido en dos
+    // envases distintos (ej. botella y lata) generaría la misma
+    // denominación y la segunda alta chocaría con una colisión que no es
+    // un duplicado real.
     dto.denominacion = Producto.generarDenominacionAutomatica(
       marca.denominacion,
       linea.denominacion,
-      presentacion.contenido.texto(),
+      presentacion.texto(envase.denominacion),
     );
 
     this.intrinsicValidationService.validarDatosBasicos({
