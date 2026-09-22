@@ -359,9 +359,12 @@ del flujo, los DTO ni el mapper.
 
 ### Verificación
 - `tsc --noEmit`: sin errores.
-- `producto.service.spec.ts`: 33 tests, 30 en verde (los 5 de CR-005, incluido el nuevo). Los 3 en
-  rojo son los mismos bugs preexistentes ya identificados en la entrada anterior, sin relación con
-  este cambio.
-- **Pendiente:** repetir la prueba manual end-to-end (ya hecha contra un backend local con
-  docker-compose + MySQL para la versión anterior) con el string corregido — no se volvió a levantar
-  el backend en esta sesión.
+- Suite completa: 322 tests, 319 en verde. Los 3 en rojo son los mismos bugs preexistentes ya
+  identificados en la entrada anterior, sin relación con este cambio.
+- Se sumaron 3 tests HTTP en `producto.http.spec.ts` (contra el `ValidationPipe` real, sin mockear)
+  para blindar el flag `generarDenominacionAutomatica` ante una regresión de validación del DTO.
+- Prueba manual end-to-end repetida contra un backend local (docker-compose + MySQL 8) con el string
+  corregido: Marca+Línea+contenido igual con envase distinto (botella vs. lata) generó dos
+  denominaciones distintas sin colisionar; repetir exactamente el mismo combo (mismo envase incluido)
+  sí dio `409` (duplicado real); alta manual sin el flag, denominación manual ignorada con el flag en
+  `true`, y ausencia de regeneración en un `PUT` posterior siguen funcionando igual que antes.
