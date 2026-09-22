@@ -206,3 +206,165 @@ envases y la estrategia de migración.
   - El precio del producto 1 cambió por el recálculo de la edición, también previo.
 - **Pendiente:** la tarjeta del frontend (formulario con envase y ABM de envases) y actualizar PA-023
   en el tablero, porque este cambio elimina R5 y R6.
+
+---
+
+## [2026-09-22] PA-031 — Denominación automática al alta del producto
+
+- **Tarjeta / CR:** PA-031 (CR-005 / US-05). Depende de PA-024, PA-001, PA-009; bloquea PA-032.
+- **Herramienta:** Claude Sonnet 5 vía Claude Code
+- **Autor/a que condujo la sesión:** —
+- **Link a la conversación:** no disponible (CLI)
+
+> La decisión de dejar el envase afuera de la denominación se revirtió el mismo día: ver
+> [la entrada de corrección](#2026-09-22-pa-031--el-envase-va-incluido-en-la-denominación-automática).
+
+### Prompt
+Implementar CR-005 tal como está redactada en la tarjeta: al crear un Producto con Marca, Línea y
+Presentación válidas, generar automáticamente la Denominación como "Marca + Línea + Presentación";
+permitir que el usuario la reemplace manualmente antes de guardar y que el backend conserve ese
+valor; que la generación ocurra sólo en el alta (un cambio posterior de Marca, Línea o Presentación
+no la regenera); y cubrir con tests la generación inicial, la edición manual y la ausencia de
+regeneración posterior. Se pidió preguntar antes de cualquier decisión.
+
+### Respuesta / propuesta de la IA
+Antes de tocar código, relevó `CreateProductoDto`, `ProductoService`, la entidad `Producto` y los
+Value Objects `Presentacion`/`Medida`, y encontró tres ambigüedades reales en la tarjeta que
+planteó antes de implementar:
+- El ejemplo funcional de la tarjeta ("Coca-Cola Gaseosas 500 ml") no incluye el envase, mientras
+  que `Presentacion.texto()` ya arma "BOTELLA 500 ml" (envase + contenido, de PA-024). Sin definir
+  esto, la denominación autogenerada podía no coincidir con el ejemplo de la tarjeta.
+- La tarjeta no dice cómo distinguir "generar automáticamente" de "el usuario mandó una
+  denominación manual": había que decidir entre inferirlo de que el campo venga vacío, o agregar un
+  campo explícito.
+- La denominación es única en todo el sistema (`validarDenominacionUnica`); dos productos con la
+  misma Marca+Línea+Presentación colisionan al autogenerar, y la tarjeta no dice qué hacer en ese
+  caso.
+
+### Decisión tomada
+- La denominación autogenerada **no incluye el envase**: `Marca + Línea + contenido` (ej.
+  "COCA-COLA GASEOSAS 500 ml"), usando `presentacion.contenido.texto()` en vez de
+  `presentacion.texto()`. Coincide literal con el ejemplo de la tarjeta.
+- Se agregó un campo explícito `generarDenominacionAutomatica?: boolean` a `CreateProductoDto` (no
+  a `UpdateProductoDto`) en vez de inferir la intención de que `denominacion` venga vacío. Con el
+  flag en `true`, `denominacion` deja de validarse en el DTO (`@ValidateIf`) y cualquier valor que
+  llegue igual se ignora: el backend siempre genera y sobrescribe. Con el flag en `false` o ausente,
+  el comportamiento es exactamente el de antes (denominación manual obligatoria) — cero cambios para
+  quien no use el flag.
+- Colisión de unicidad: se resuelve con el `409` que ya lanza `validarDenominacionUnica`, sin lógica
+  de desambiguación nueva. El alta falla y el usuario tiene que mandar una denominación manual.
+- La generación se implementó como método estático de dominio,
+  `Producto.generarDenominacionAutomatica(marca, linea, presentacionTexto)`, invocado sólo desde un
+  flujo nuevo de `ProductoService` (`validarYPrepararCreacionConDenominacionAutomatica`) que resuelve
+  Marca, Línea y el envase de la Presentación *antes* de armar el string, y nunca desde `update()` —
+  así que un cambio posterior de Marca, Línea o Presentación no la toca.
+
+### Qué se descartó y por qué
+- **Incluir el envase en la denominación:** es lo que ya arma `Presentacion.texto()`, pero no
+  coincide con el ejemplo literal de la tarjeta ("Coca-Cola Gaseosas 500 ml", sin "Botella").
+- **Inferir la generación de que `denominacion` venga vacío/ausente:** funciona, pero es implícito;
+  con un campo explícito el contrato HTTP dice la intención en vez de inferirla de una ausencia, y
+  además deja mandar `denominacion` junto con el flag sin ambigüedad sobre qué gana (gana el flag).
+- **Auto-desambiguar una colisión de unicidad (ej. sufijo automático):** no lo pide la tarjeta y
+  agrega una regla de negocio nueva (¿qué sufijo, hasta cuándo reintentar) sin especificación.
+- **Reordenar `validarYPrepararCreacion` para todos los casos:** se probó separar el flujo con flag
+  en un método aparte en vez de intercalar la generación en el flujo existente, para no tocar el
+  orden de validaciones (y por lo tanto los mensajes de error) del alta manual, que ya tiene tests
+  cubriendo ese orden.
+
+### Modificaciones sobre lo generado
+Ninguna: el equipo confirmó las tres preguntas (envase afuera, flag explícito, 409 en colisión) tal
+como se propusieron, sin cambios sobre lo implementado.
+
+### Impacto
+- `producto/dto/create-producto.dto.ts`: `denominacion` pasa a `string | undefined` con
+  `@ValidateIf((o) => o.generarDenominacionAutomatica !== true)`; nuevo campo
+  `generarDenominacionAutomatica?: boolean`. `UpdateProductoDto` no se tocó (sigue exigiendo
+  denominación siempre).
+- `producto/domain/entities/producto.entity.ts`: nuevo método estático
+  `generarDenominacionAutomatica`.
+- `producto/application/services/producto.service.ts`: `validarYPrepararCreacion` deriva al nuevo
+  flujo `validarYPrepararCreacionConDenominacionAutomatica` cuando el flag es `true`; sin cambios en
+  el flujo manual salvo dos `!` de TypeScript (el campo pasó a opcional en el tipo).
+- `producto/mappers/producto.mapper.ts`: `generarDenominacionAutomatica` se excluye explícitamente
+  al mapear el DTO a la entidad (en alta y en update), para que no se filtre como propiedad suelta.
+- **Contrato:** cambio no incompatible — `denominacion` se afloja de obligatoria a condicional;
+  nadie que no mande el flag nuevo nota un cambio.
+- Tests nuevos en `producto.service.spec.ts` (`describe('denominación automática (CR-005)')`):
+  generación inicial, denominación manual ignorada con el flag en `true`, denominación manual
+  conservada con el flag en `false`/ausente, y ausencia de regeneración en `update()`.
+
+### Verificación
+- `tsc --noEmit`: sin errores.
+- `jest` (suite completa): 318 tests, 315 en verde (línea base antes de este cambio, en la misma
+  rama: 314 tests, 311 en verde). Los 3 tests en rojo y la suite `producto.controller.spec.ts` que no
+  carga son **previos a esta tarjeta**: se confirmó corriendo la suite completa con `git stash` sobre
+  el estado sin esta tarjeta y falla exactamente igual (bug del mock de transacción en 3 tests de
+  `modificación` de `producto.service.spec.ts`, y un problema de versión de
+  `@nestjs/swagger`/`PartialType` ajeno a este cambio). El test nuevo de "no regenera en `update()`"
+  se armó con un `precio` explícito en el fixture para no pisar ese camino roto.
+- **Pendiente:** prueba manual contra el backend local (no se levantó la app en esta sesión) y la
+  tarjeta del frontend que consume el flag nuevo.
+
+---
+
+## [2026-09-22] PA-031 — El envase va incluido en la denominación automática
+
+- **Tarjeta / CR:** PA-031 (CR-005 / US-05). Corrige la entrada anterior de este mismo día
+  ([Denominación automática al alta del producto](#2026-09-22-pa-031--denominación-automática-al-alta-del-producto)).
+- **Herramienta:** Claude Sonnet 5 vía Claude Code
+- **Autor/a que condujo la sesión:** —
+- **Link a la conversación:** no disponible (CLI)
+
+### Prompt
+El usuario marcó como incorrecta la decisión de dejar el envase afuera de la denominación
+autogenerada: con Marca+Línea+contenido solamente, una Coca-Cola de 500 ml en botella y otra en
+lata generan el mismo string y, como la denominación es única en todo el sistema, la segunda alta
+choca con una colisión que no es un duplicado real. Pidió corregirlo, aclarando que no hace falta
+que el resultado coincida literalmente con el ejemplo de la tarjeta de Trello.
+
+### Respuesta / propuesta de la IA
+Confirmó el caso: `Producto.generarDenominacionAutomatica` recibía `presentacion.contenido.texto()`
+("500 ml", sin envase) en vez de `presentacion.texto(envase.denominacion)` ("BOTELLA 500 ml"). Se
+corrigió el único call site, en `ProductoService.validarYPrepararCreacionConDenominacionAutomatica`.
+
+### Decisión tomada
+- La denominación automática pasa a ser `Marca + Línea + Presentación completa (envase + contenido)`,
+  ej. `"COCA-COLA GASEOSAS BOTELLA 500 ml"`. Revierte puntualmente la decisión "sin envase" de la
+  entrada anterior; el resto de esa entrada (flag explícito, `409` en colisión, generación sólo en
+  el alta) no cambia.
+- Se agregó un test nuevo que prueba explícitamente el caso que motivó la corrección: misma
+  Marca+Línea+contenido, envase distinto (botella vs. bolsa) → dos denominaciones distintas, no hay
+  colisión.
+
+### Qué se descartó y por qué
+- **Dejar el ejemplo de la tarjeta como criterio de aceptación literal:** el usuario aclaró que no
+  hace falta que coincida; prevalece la regla de negocio real (no perder la distinción entre
+  envases) por sobre el string exacto del ejemplo funcional.
+
+### Modificaciones sobre lo generado
+Ninguna: cambio de una línea (el argumento que arma el string) más su comentario, sin tocar el resto
+del flujo, los DTO ni el mapper.
+
+### Impacto
+- `producto/domain/entities/producto.entity.ts`: comentario de `generarDenominacionAutomatica`
+  actualizado; la firma del método no cambió.
+- `producto/application/services/producto.service.ts`: el call site pasa
+  `presentacion.texto(envase.denominacion)` en vez de `presentacion.contenido.texto()`.
+- `producto.service.spec.ts`: las 4 cadenas esperadas de la CR-005 pasan a incluir el envase (ej.
+  `"COCA-COLA GASEOSAS BOTELLA 500 ml"`), y se agregó un quinto test:
+  "el envase distingue productos con igual Marca+Línea+contenido (botella vs. lata no colisionan)".
+- **Contrato:** ninguno nuevo — sigue siendo el mismo campo `generarDenominacionAutomatica`, sólo
+  cambia el contenido del string que genera.
+
+### Verificación
+- `tsc --noEmit`: sin errores.
+- Suite completa: 322 tests, 319 en verde. Los 3 en rojo son los mismos bugs preexistentes ya
+  identificados en la entrada anterior, sin relación con este cambio.
+- Se sumaron 3 tests HTTP en `producto.http.spec.ts` (contra el `ValidationPipe` real, sin mockear)
+  para blindar el flag `generarDenominacionAutomatica` ante una regresión de validación del DTO.
+- Prueba manual end-to-end repetida contra un backend local (docker-compose + MySQL 8) con el string
+  corregido: Marca+Línea+contenido igual con envase distinto (botella vs. lata) generó dos
+  denominaciones distintas sin colisionar; repetir exactamente el mismo combo (mismo envase incluido)
+  sí dio `409` (duplicado real); alta manual sin el flag, denominación manual ignorada con el flag en
+  `true`, y ausencia de regeneración en un `PUT` posterior siguen funcionando igual que antes.

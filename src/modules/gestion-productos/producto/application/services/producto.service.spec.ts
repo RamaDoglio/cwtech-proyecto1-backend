@@ -841,5 +841,119 @@ describe('ProductoService', () => {
         });
       });
     });
+
+    describe('denominación automática (CR-005)', () => {
+      const marcaCocaCola = { id: 1, denominacion: 'COCA-COLA' };
+      const lineaGaseosas = { id: 1, denominacion: 'GASEOSAS' };
+
+      beforeEach(() => {
+        mockRelatedEntitiesValidator.validarYObtenerEntidadesRelacionadas.mockResolvedValue(
+          { marca: marcaCocaCola, linea: lineaGaseosas },
+        );
+      });
+
+      it('genera "Marca Línea Presentación" (con envase) cuando generarDenominacionAutomatica es true y no se envía denominación', async () => {
+        const { denominacion, ...altaSinDenominacion } = altaBase;
+
+        await service.create({
+          ...altaSinDenominacion,
+          generarDenominacionAutomatica: true,
+          presentacion: { envaseId: 1, cantidad: 500, unidad: 'ml' },
+        } as CreateProductoDto);
+
+        expect(
+          mockUniquenessValidator.validarDenominacionUnica,
+        ).toHaveBeenCalledWith('COCA-COLA GASEOSAS BOTELLA 500 ml');
+        expect(mockRepository.save).toHaveBeenCalledWith(
+          expect.objectContaining({
+            denominacion: 'COCA-COLA GASEOSAS BOTELLA 500 ml',
+          }),
+        );
+      });
+
+      it('ignora cualquier denominación recibida cuando generarDenominacionAutomatica es true', async () => {
+        await service.create({
+          ...altaBase,
+          denominacion: 'ESTO SE IGNORA',
+          generarDenominacionAutomatica: true,
+          presentacion: { envaseId: 1, cantidad: 500, unidad: 'ml' },
+        } as CreateProductoDto);
+
+        expect(mockRepository.save).toHaveBeenCalledWith(
+          expect.objectContaining({
+            denominacion: 'COCA-COLA GASEOSAS BOTELLA 500 ml',
+          }),
+        );
+      });
+
+      it('el envase distingue productos con igual Marca+Línea+contenido (botella vs. lata no colisionan)', async () => {
+        const { denominacion, ...altaSinDenominacion } = altaBase;
+
+        await service.create({
+          ...altaSinDenominacion,
+          generarDenominacionAutomatica: true,
+          presentacion: { envaseId: 1, cantidad: 500, unidad: 'ml' },
+        } as CreateProductoDto);
+        await service.create({
+          ...altaSinDenominacion,
+          generarDenominacionAutomatica: true,
+          presentacion: { envaseId: 2, cantidad: 500, unidad: 'ml' },
+        } as CreateProductoDto);
+
+        expect(mockRepository.save).toHaveBeenNthCalledWith(
+          1,
+          expect.objectContaining({
+            denominacion: 'COCA-COLA GASEOSAS BOTELLA 500 ml',
+          }),
+        );
+        expect(mockRepository.save).toHaveBeenNthCalledWith(
+          2,
+          expect.objectContaining({
+            denominacion: 'COCA-COLA GASEOSAS BOLSA 500 ml',
+          }),
+        );
+      });
+
+      it('con generarDenominacionAutomatica en false u omitido, conserva tal cual la denominación manual enviada', async () => {
+        await service.create({
+          ...altaBase,
+          denominacion: 'mi denominación manual',
+          presentacion: { envaseId: 1, cantidad: 500, unidad: 'ml' },
+        } as CreateProductoDto);
+
+        expect(
+          mockUniquenessValidator.validarDenominacionUnica,
+        ).toHaveBeenCalledWith('mi denominación manual');
+        expect(mockRepository.save).toHaveBeenCalledWith(
+          expect.objectContaining({ denominacion: 'mi denominación manual' }),
+        );
+      });
+
+      it('un cambio posterior de marca, línea o presentación por PUT no regenera la denominación generada al alta', async () => {
+        // precio explícito = costo(100) × margen(15 %) para que la edición no
+        // recalcule el precio: ese camino usa la transacción de historial,
+        // que en este archivo ya falla sin mockear (bug previo, no de CR-005).
+        const producto = productoGuardado({
+          denominacion: 'COCA-COLA GASEOSAS BOTELLA 500 ml',
+          precio: 115,
+          ...botella500,
+        });
+        mockRepository.findOne.mockResolvedValue(producto);
+
+        await service.update(1, {
+          usuarioUpdatedId: 1,
+          marcaId: 1,
+          lineaId: 1,
+          presentacion: { envaseId: 2, cantidad: 1, unidad: 'kg' },
+        } as UpdateProductoDto);
+
+        expect(mockRepository.save).toHaveBeenCalledWith(
+          expect.objectContaining({
+            denominacion: 'COCA-COLA GASEOSAS BOTELLA 500 ml',
+            envasePresentacionId: 2,
+          }),
+        );
+      });
+    });
   });
 });

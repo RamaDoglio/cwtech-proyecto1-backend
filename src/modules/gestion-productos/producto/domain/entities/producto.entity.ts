@@ -325,4 +325,24 @@ export class Producto {
       this.presentacionMagnitudBase != null
     );
   }
+
+  // ============================================================
+  // Denominación automática — sólo al alta (CR-005). "Marca + Línea +
+  // Presentación", con el envase incluido (ej. "COCA-COLA GASEOSAS BOTELLA
+  // 500 ml"): sin el envase, "Coca-Cola Gaseosas 500 ml" en botella y en
+  // lata generarían el mismo string y, como la denominación es única en
+  // todo el sistema, la segunda alta fallaría por una colisión que no es
+  // un duplicado real. No se usa en update: una edición posterior de
+  // marca, línea o presentación no regenera la denominación existente.
+  // ============================================================
+  static generarDenominacionAutomatica(
+    marcaDenominacion: string,
+    lineaDenominacion: string,
+    presentacionTexto: string,
+  ): string {
+    return [marcaDenominacion, lineaDenominacion, presentacionTexto]
+      .map((parte) => parte.trim())
+      .filter((parte) => parte.length > 0)
+      .join(' ');
+  }
 }

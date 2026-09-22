@@ -456,4 +456,61 @@ describe('ProductoController HTTP', () => {
       expect(productoService.findDtoById).toHaveBeenCalledWith(1);
     });
   });
+
+  describe('denominación automática (CR-005)', () => {
+    const botella500 = { envaseId: 1, cantidad: 500, unidad: 'ml' };
+    const { denominacion: _denominacion, ...productoSinDenominacion } =
+      productoValido;
+
+    it('acepta el alta con generarDenominacionAutomatica=true y sin denominación', async () => {
+      await request(app.getHttpServer())
+        .post('/producto')
+        .send({
+          ...productoSinDenominacion,
+          generarDenominacionAutomatica: true,
+          presentacion: botella500,
+        })
+        .expect(201);
+
+      expect(productoService.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          generarDenominacionAutomatica: true,
+          presentacion: botella500,
+        }),
+      );
+      expect(productoService.create.mock.calls[0][0]).not.toHaveProperty(
+        'denominacion',
+      );
+    });
+
+    it('sigue exigiendo la denominación cuando el flag está en false o ausente', async () => {
+      const response = await request(app.getHttpServer())
+        .post('/producto')
+        .send({ ...productoSinDenominacion, presentacion: botella500 })
+        .expect(400);
+
+      expect(response.body.message).toEqual(
+        expect.arrayContaining([
+          expect.stringContaining('La denominación no puede estar vacía.'),
+        ]),
+      );
+      expect(productoService.create).not.toHaveBeenCalled();
+    });
+
+    it('deja pasar una denominación manual junto con el flag en true (el caso de uso decide ignorarla)', async () => {
+      await request(app.getHttpServer())
+        .post('/producto')
+        .send({
+          ...productoValido,
+          denominacion: 'esto se ignora',
+          generarDenominacionAutomatica: true,
+          presentacion: botella500,
+        })
+        .expect(201);
+
+      expect(productoService.create).toHaveBeenCalledWith(
+        expect.objectContaining({ generarDenominacionAutomatica: true }),
+      );
+    });
+  });
 });
