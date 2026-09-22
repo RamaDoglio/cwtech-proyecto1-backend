@@ -27,6 +27,7 @@ import { CondicionIvaModule } from './modules/gutil/condicion-iva/condicion-iva.
 import { EmpresaOperacionModule } from './modules/organizacion/empresa-operacion/empresa-operacion.module';
 import { ClienteOperacionModule } from './modules/organizacion/cliente-operacion/cliente-operacion.module';
 import { BusquedasModule } from './modules/gestion-documentos/busquedas/busquedas.module';
+import { SuperLineaModule } from './modules/gestion-productos/superlinea/superlinea.module';
 
 @Module({
   imports: [
@@ -36,17 +37,13 @@ import { BusquedasModule } from './modules/gestion-documentos/busquedas/busqueda
     TypeOrmModule.forRoot({
       type: (process.env.DB_TYPE as 'mysql') || 'mysql',
       host: process.env.DB_HOST,
-      port: parseInt(process.env.DB_PORT || '3306', 10), // Si PORT es undefined, usa 3306
-      username: process.env.DB_USERNAME, //"admin", //
+      port: parseInt(process.env.DB_PORT || '3306', 10),
+      username: process.env.DB_USERNAME,
       password: process.env.DB_PASSWORD,
       database: process.env.DB_DATABASE,
       timezone: '-03:00',
 
-      //  Auto-carga de entidades desde los módulos
-      // Las entidades se registran automáticamente cuando usás
-      // TypeOrmModule.forFeature([Entidad]) en tus módulos
       entities: [__dirname + '/**/*.entity{.ts,.js}'],
-      // entities,
       synchronize: false,
       ssl:
         process.env.DB_SSL === 'true'
@@ -56,6 +53,7 @@ import { BusquedasModule } from './modules/gestion-documentos/busquedas/busqueda
 
     MarcaModule,
     LineaModule,
+    SuperLineaModule,
     ProductoModule,
     EnvasePresentacionModule,
     CondicionIvaModule,

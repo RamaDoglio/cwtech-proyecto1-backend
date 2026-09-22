@@ -12,11 +12,13 @@ import { LineaController } from './application/controllers/linea.controller';
 import { LineaService } from './application/services/linea.service';
 import { ProductoModule } from '../producto/producto.module';
 import { PoliticaEliminacionLinea } from './domain/services/politica-eliminacion-linea.service';
+import { SuperLineaModule } from '../superlinea/superlinea.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Linea]),
     forwardRef(() => ProductoModule),
+    forwardRef(() => SuperLineaModule),
     UsuarioModule,
   ],
   controllers: [LineaController],
@@ -27,7 +29,6 @@ import { PoliticaEliminacionLinea } from './domain/services/politica-eliminacion
       provide: 'ILineaRepository',
       useClass: LineaRepository,
     },
-
     {
       provide: 'UnitOfWork',
       useFactory: (dataSource: DataSource): IUnitOfWork => {
