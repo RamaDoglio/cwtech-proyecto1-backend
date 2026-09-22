@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Linea } from 'src/modules/gestion-productos/linea/domain/entities/linea.entity';
 import { Marca } from 'src/modules/gestion-productos/marca/domain/entities/marca.entity';
+import { EnvasePresentacion } from 'src/modules/gestion-productos/envase-presentacion/domain/entities/envase-presentacion.entity';
 import { Usuario } from 'src/modules/gestion-usuario/usuario/domain/entities/usuario.entity';
 import { Proveedor } from 'src/modules/organizacion/proveedor/domain/entities/proveedor.entity';
 import { DeepPartial, Repository } from 'typeorm';
@@ -15,6 +16,9 @@ export class SeedFamiliaProductoService {
 
     @InjectRepository(Marca)
     private readonly marcaRepository: Repository<Marca>,
+
+    @InjectRepository(EnvasePresentacion)
+    private readonly envasePresentacionRepository: Repository<EnvasePresentacion>,
 
 
 
@@ -149,12 +153,56 @@ export class SeedFamiliaProductoService {
   }
 
 
+  // Seed de envases de la presentación (CR-002). Los usuarios pueden crear más.
+  async seedEnvasesPresentacion() {
+    const denominaciones = [
+      'BOTELLA',
+      'BOLSA',
+      'BOLSÓN',
+      'CAJA',
+      'LATA',
+      'FRASCO',
+      'PAQUETE',
+      'SACHET',
+    ];
+    const usuarioCreatedId = 1;
+
+    const usuarioCreated = await this.usuarioRepository.findOneBy({
+      id: usuarioCreatedId,
+    });
+    if (!usuarioCreated) {
+      console.log(`⚠️ No se encontró el usuario "${usuarioCreatedId}".`);
+      return;
+    }
+
+    for (const denominacion of denominaciones) {
+      const exists = await this.envasePresentacionRepository.findOneBy({
+        denominacion,
+      });
+
+      if (exists) {
+        console.log(`⚠️ Envase de presentación "${denominacion}" ya existe.`);
+        continue;
+      }
+
+      await this.envasePresentacionRepository.save(
+        this.envasePresentacionRepository.create({
+          denominacion,
+          sistema: 0,
+          usuarioCreatedId: usuarioCreated.id,
+        }),
+      );
+      console.log(`✅ Envase de presentación "${denominacion}" creado.`);
+    }
+  }
+
   async runAllSeeds() {
     console.log('🚀 Iniciando todos los seeds...');
 
 
    await  this.seedLineas();
     await this.seedMarcas();
+    await this.seedEnvasesPresentacion();
 
     console.log('✅ Todos los seeds completados.');
   }

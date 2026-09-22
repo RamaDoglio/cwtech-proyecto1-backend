@@ -5,6 +5,7 @@ import { MarcaModule } from './modules/gestion-productos/marca/marca.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { LineaModule } from './modules/gestion-productos/linea/linea.module';
 import { ProductoModule } from './modules/gestion-productos/producto/producto.module';
+import { EnvasePresentacionModule } from './modules/gestion-productos/envase-presentacion/envase-presentacion.module';
 import { ConfigModule } from '@nestjs/config';
 import { ProveedorModule } from './modules/organizacion/proveedor/proveedor.module';
 import { PersonalModule } from './modules/organizacion/personal/personal.module';
@@ -56,6 +57,7 @@ import { BusquedasModule } from './modules/gestion-documentos/busquedas/busqueda
     MarcaModule,
     LineaModule,
     ProductoModule,
+    EnvasePresentacionModule,
     CondicionIvaModule,
     LocalidadModule,
     ProvinciaModule,
