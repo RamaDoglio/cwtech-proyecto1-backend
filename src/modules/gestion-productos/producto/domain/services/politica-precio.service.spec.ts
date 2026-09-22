@@ -1,4 +1,5 @@
 import { PoliticaPrecio } from './politica-precio.service';
+import { TipoAumento } from '../../../../common/enums/tipo-aumento.emun';
 
 describe('PoliticaPrecio', () => {
   it('calcula el precio con el margen general del 15% cuando no se informa uno particular', () => {
@@ -28,4 +29,36 @@ describe('PoliticaPrecio', () => {
   ])('rechaza %s', (_descripcion, costo, margen) => {
     expect(() => PoliticaPrecio.calcular(costo, margen)).toThrow(RangeError);
   });
+
+  //TIPO PORCENTAJE
+  describe('PoliticaPrecio.aplicarAjuste - tipo PORCENTAJE', () => {
+  it('aplica un aumento positivo', () => {
+    expect(PoliticaPrecio.aplicarAjuste(1000, TipoAumento.PORCENTAJE, 10)).toBe(1100);
+  });
+
+  it('aplica un decremento (valor negativo)', () => {
+    expect(PoliticaPrecio.aplicarAjuste(1000, TipoAumento.PORCENTAJE, -10)).toBe(900);
+  });
+
+  it('un ajuste del 0% deja el precio igual', () => {
+    expect(PoliticaPrecio.aplicarAjuste(1000, TipoAumento.PORCENTAJE, 0)).toBe(1000);
+  });
+
+  it('redondea correctamente con decimales feos', () => {
+    // 1234.567 * 1.10 = 1358.0237
+    expect(
+      PoliticaPrecio.aplicarAjuste(1234.567, TipoAumento.PORCENTAJE, 10),
+    ).toBeCloseTo(1358.0237, 4);
+  });
+
+  it.each([
+    ['deja el precio en 0', 1000, -100],
+    ['deja el precio negativo', 1000, -150],
+    ['precio actual 0, el % de 0 sigue siendo 0', 0, 10],
+  ])('rechaza un ajuste que %s', (_descripcion, precioActual, valor) => {
+    expect(() =>
+      PoliticaPrecio.aplicarAjuste(precioActual, TipoAumento.PORCENTAJE, valor),
+    ).toThrow(RangeError);
+  });
+});
 });
