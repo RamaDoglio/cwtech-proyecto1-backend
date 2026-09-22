@@ -61,4 +61,38 @@ describe('PoliticaPrecio', () => {
     ).toThrow(RangeError);
   });
 });
+
+//MONTO FIJO
+describe('PoliticaPrecio.aplicarAjuste - tipo MONTO_FIJO', () => {
+  it('aplica un aumento positivo', () => {
+    expect(PoliticaPrecio.aplicarAjuste(1000, TipoAumento.MONTO_FIJO, 100)).toBe(1100);
+  });
+
+  it('aplica un decremento (valor negativo)', () => {
+    expect(PoliticaPrecio.aplicarAjuste(1000, TipoAumento.MONTO_FIJO, -100)).toBe(900);
+  });
+
+  it('acepta precio actual 0 con un monto positivo', () => {
+    expect(PoliticaPrecio.aplicarAjuste(0, TipoAumento.MONTO_FIJO, 50)).toBe(50);
+  });
+
+  it.each([
+    ['el decremento supera el precio actual', 50, -100],
+    ['el decremento deja el precio exactamente en 0', 100, -100],
+  ])('rechaza un ajuste donde %s', (_descripcion, precioActual, valor) => {
+    expect(() =>
+      PoliticaPrecio.aplicarAjuste(precioActual, TipoAumento.MONTO_FIJO, valor),
+    ).toThrow(RangeError);
+  });
+});
+
+describe('PoliticaPrecio.aplicarAjuste - casos borde generales', () => {
+  it.each([
+    ['PORCENTAJE', TipoAumento.PORCENTAJE],
+    ['MONTO_FIJO', TipoAumento.MONTO_FIJO],
+  ])('rechaza precio actual negativo con tipo %s', (_nombre, tipo) => {
+    expect(() => PoliticaPrecio.aplicarAjuste(-10, tipo, 10)).toThrow(RangeError);
+  });
+});
+
 });
