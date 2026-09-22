@@ -39,7 +39,6 @@ import { CambiarPrecioDto } from '../../dto/cambiar-precio.dto';
 import { HistorialPrecioDto } from '../../dto/historial-precio.dto';
 import { Presentacion } from '../../domain/value-objects/presentacion.vo';
 import { PresentacionRequeridaException } from 'src/modules/common/exceptions/presentacion-requerida.exception';
-import { DataSource } from 'typeorm';
 import { TipoAumento } from 'src/modules/common/enums/tipo-aumento.emun';
 import { Linea } from '../../../linea/domain/entities/linea.entity';
 import { DataSource, EntityManager } from 'typeorm';
