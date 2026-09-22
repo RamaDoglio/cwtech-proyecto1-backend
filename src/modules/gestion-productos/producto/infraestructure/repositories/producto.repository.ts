@@ -152,6 +152,14 @@ export class ProductoRepository implements IProductoRepository {
     return this.persistence.existsProductosActivosByLinea(lineaId);
   }
 
+  existsProductosActivosByEnvasePresentacion(
+    envasePresentacionId: number,
+  ): Promise<boolean> {
+    return this.persistence.existsProductosActivosByEnvasePresentacion(
+      envasePresentacionId,
+    );
+  }
+
   isCodigoProveedorDuplicado(
     codigoProveedor: string | null,
     id?: number,
