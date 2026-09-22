@@ -37,6 +37,8 @@ import { MovimientoStock } from '../../domain/entities/movimiento-stock.entity';
 import { HistorialPrecio } from '../../domain/entities/historial-precio.entity';
 import { CambiarPrecioDto } from '../../dto/cambiar-precio.dto';
 import { HistorialPrecioDto } from '../../dto/historial-precio.dto';
+import { Presentacion } from '../../domain/value-objects/presentacion.vo';
+import { PresentacionRequeridaException } from 'src/modules/common/exceptions/presentacion-requerida.exception';
 import { TipoAumento } from 'src/modules/common/enums/tipo-aumento.emun';
 import { Linea } from '../../../linea/domain/entities/linea.entity';
 import { DataSource, EntityManager } from 'typeorm';
@@ -79,7 +81,8 @@ export class ProductoService {
       `Creando un nuevo ${this.ENTITY_NAME} con denominación: ${dto.denominacion}`,
     );
 
-    const { marca, linea, usuario } = await this.validarYPrepararCreacion(dto);
+    const { marca, linea, usuario, presentacion, envase } =
+      await this.validarYPrepararCreacion(dto);
 
     const producto = ProductoMapper.toEntityFromCreateDto(
       dto,
@@ -87,6 +90,7 @@ export class ProductoService {
       marca,
       usuario,
     );
+    producto.asignarPresentacion(presentacion, envase);
 
     const entity = await this.repository.save(producto);
 
@@ -523,6 +527,13 @@ export class ProductoService {
       alicuotaIva: dto.alicuotaIva,
     });
 
+    // PA-023 §5: la presentación es obligatoria en el alta. Se valida antes de
+    // las validaciones que consultan la base.
+    if (dto.presentacion == null) {
+      throw new PresentacionRequeridaException();
+    }
+    const presentacion = Presentacion.crear(dto.presentacion);
+
     await this.uniquenessValidator.validarDenominacionUnica(dto.denominacion);
 
     if (dto.codigoProveedor) {
@@ -540,11 +551,16 @@ export class ProductoService {
 
     this.validationService.validarEntidadesRelacionadas(marca, linea);
 
+    const envase =
+      await this.relatedEntitiesValidator.validarYObtenerEnvasePresentacion(
+        presentacion.envaseId,
+      );
+
     const usuario = await this.usuarioValidator.validarUsuarioExiste(
       dto.usuarioCreatedId,
     );
 
-    return { marca, linea, usuario };
+    return { marca, linea, usuario, presentacion, envase };
   }
 
   private async ajustarStockEnTransaccion(
@@ -694,6 +710,16 @@ export class ProductoService {
       alicuotaIva: dto.alicuotaIva ?? productoActual.alicuotaIva,
     });
 
+    // PA-023 §5: si viene, reemplaza la actual y no se puede quitar. Si no
+    // viene, la presentación guardada no cambia. Las reglas del contenido se
+    // validan acá; el envase, junto con las demás entidades relacionadas.
+    let nuevaPresentacion: Presentacion | null = null;
+    if (dto.presentacion === null) {
+      productoActual.asignarPresentacion(null);
+    } else if (dto.presentacion !== undefined) {
+      nuevaPresentacion = Presentacion.crear(dto.presentacion);
+    }
+
     if (dto.denominacion) {
       await this.uniquenessValidator.validarDenominacionUnica(
         dto.denominacion,
@@ -708,6 +734,14 @@ export class ProductoService {
       );
 
     this.validationService.validarEntidadesRelacionadas(marca, linea);
+
+    if (nuevaPresentacion) {
+      const envase =
+        await this.relatedEntitiesValidator.validarYObtenerEnvasePresentacion(
+          nuevaPresentacion.envaseId,
+        );
+      productoActual.asignarPresentacion(nuevaPresentacion, envase);
+    }
 
     const usuario = await this.usuarioValidator.validarUsuarioExiste(
       dto.usuarioUpdatedId,

@@ -1,4 +1,4 @@
-import { Transform } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import {
   IsString,
   IsNotEmpty,
@@ -13,9 +13,12 @@ import {
   ValidateIf,
   IsPositive,
   Max,
+  IsObject,
+  ValidateNested,
 } from 'class-validator';
 import { AlicuotaIva } from 'src/modules/organizacion/enums/alicuota-iva.enum';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { PresentacionDto } from './presentacion.dto';
 
 /**
  * El precio de venta es derivado por el backend y no forma parte de este contrato.
@@ -154,5 +157,18 @@ export class CreateProductoDto {
   @IsInt({ message: 'El usuarioCreatedId debe ser un número entero.' })
   usuarioCreatedId: number;
 
-
+  // Opcional en el DTO a propósito: la obligatoriedad es una regla de dominio
+  // con su propio código (PRESENTACION_REQUERIDA) y UpdateProductoDto la hereda
+  // como opcional.
+  @ApiPropertyOptional({
+    type: () => PresentacionDto,
+    nullable: true,
+    description:
+      'Obligatoria en el alta (PA-023 §5). Las reglas se validan en el dominio.',
+  })
+  @IsOptional()
+  @IsObject({ message: 'La presentación debe ser un objeto.' })
+  @ValidateNested()
+  @Type(() => PresentacionDto)
+  presentacion?: PresentacionDto | null;
 }

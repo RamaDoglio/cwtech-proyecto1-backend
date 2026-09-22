@@ -8,6 +8,8 @@ import * as request from 'supertest';
 import { AuthGuard } from 'src/modules/gestion-usuario/auth/auth.guard';
 import { GlobalExceptionFilter } from 'src/modules/common/filters/global-exception.filters';
 import { StockNegativoException } from 'src/modules/common/exceptions/stock-negativo.exception';
+import { PresentacionInvalidaException } from 'src/modules/common/exceptions/presentacion-invalida.exception';
+import { PresentacionRequeridaException } from 'src/modules/common/exceptions/presentacion-requerida.exception';
 import { ProductoController } from './producto.controller';
 import { ProductoService } from '../services/producto.service';
 
@@ -19,6 +21,7 @@ describe('ProductoController HTTP', () => {
     ajustarStockManual: jest.fn(),
     cambiarPrecio: jest.fn(),
     findHistorialPrecios: jest.fn(),
+    findDtoById: jest.fn(),
   };
 
   const productoValido = {
@@ -282,5 +285,175 @@ describe('ProductoController HTTP', () => {
       0,
       10,
     );
+  });
+
+  describe('presentación (CR-002)', () => {
+    const botella500 = { envaseId: 1, cantidad: 500, unidad: 'ml' };
+
+    it('acepta la presentación en el alta y la pasa al caso de uso', async () => {
+      await request(app.getHttpServer())
+        .post('/producto')
+        .send({ ...productoValido, presentacion: botella500 })
+        .expect(201);
+
+      expect(productoService.create).toHaveBeenCalledWith(
+        expect.objectContaining({ presentacion: botella500 }),
+      );
+    });
+
+    it.each<[string, unknown, string]>([
+      [
+        'un envase que no es entero',
+        { ...botella500, envaseId: 'botella' },
+        'El envase de la presentación debe ser un número entero.',
+      ],
+      [
+        'un envase menor a 1',
+        { ...botella500, envaseId: 0 },
+        'El envase de la presentación debe ser un id válido.',
+      ],
+      [
+        'una cantidad que no es número',
+        { ...botella500, cantidad: 'abc' },
+        'La cantidad de la presentación debe ser un número.',
+      ],
+      [
+        'una unidad que no es texto',
+        { ...botella500, unidad: 123 },
+        'La unidad de la presentación debe ser un texto.',
+      ],
+      [
+        'una presentación sin envase',
+        { cantidad: 500, unidad: 'ml' },
+        'El envase de la presentación debe ser un número entero.',
+      ],
+      [
+        'una presentación vacía',
+        {},
+        'La cantidad de la presentación debe ser un número.',
+      ],
+      ['una propiedad no admitida', { ...botella500, texto: 'x' }, 'texto'],
+      [
+        'una presentación que no es objeto',
+        'BOTELLA 500 ml',
+        'La presentación debe ser un objeto.',
+      ],
+      [
+        'una presentación dentro de un array',
+        [botella500],
+        'La presentación debe ser un objeto.',
+      ],
+    ])('rechaza en el DTO %s', async (_descripcion, presentacion, mensaje) => {
+      const response = await request(app.getHttpServer())
+        .post('/producto')
+        .send({ ...productoValido, presentacion })
+        .expect(400);
+
+      expect(response.body.message).toEqual(
+        expect.arrayContaining([expect.stringContaining(mensaje)]),
+      );
+      expect(productoService.create).not.toHaveBeenCalled();
+    });
+
+    it('acepta la presentación en la modificación y la pasa al caso de uso', async () => {
+      await request(app.getHttpServer())
+        .put('/producto/1')
+        .send({
+          denominacion: 'producto de prueba',
+          usuarioUpdatedId: 1,
+          presentacion: botella500,
+        })
+        .expect(200);
+
+      expect(productoService.update).toHaveBeenCalledWith(
+        1,
+        expect.objectContaining({ presentacion: botella500 }),
+      );
+    });
+
+    it('deja pasar null en la modificación: la regla la decide el dominio (A2)', async () => {
+      await request(app.getHttpServer())
+        .put('/producto/1')
+        .send({
+          denominacion: 'producto de prueba',
+          usuarioUpdatedId: 1,
+          presentacion: null,
+        })
+        .expect(200);
+
+      expect(productoService.update).toHaveBeenCalledWith(
+        1,
+        expect.objectContaining({ presentacion: null }),
+      );
+    });
+
+    it('valida los tipos de la presentación también en la modificación', async () => {
+      await request(app.getHttpServer())
+        .put('/producto/1')
+        .send({
+          denominacion: 'producto de prueba',
+          usuarioUpdatedId: 1,
+          presentacion: { ...botella500, cantidad: 'abc' },
+        })
+        .expect(400);
+
+      expect(productoService.update).not.toHaveBeenCalled();
+    });
+
+    it('responde PRESENTACION_INVALIDA con el mensaje de la regla', async () => {
+      productoService.create.mockRejectedValueOnce(
+        new PresentacionInvalidaException(
+          'La cantidad de la presentación debe ser mayor a 0.',
+        ),
+      );
+
+      const response = await request(app.getHttpServer())
+        .post('/producto')
+        .send({ ...productoValido, presentacion: { ...botella500, cantidad: 0 } })
+        .expect(400);
+
+      expect(response.body).toMatchObject({
+        statusCode: 400,
+        code: 'PRESENTACION_INVALIDA',
+        message: 'La cantidad de la presentación debe ser mayor a 0.',
+      });
+    });
+
+    it('responde PRESENTACION_REQUERIDA si el alta no trae presentación', async () => {
+      productoService.create.mockRejectedValueOnce(
+        new PresentacionRequeridaException(),
+      );
+
+      const response = await request(app.getHttpServer())
+        .post('/producto')
+        .send(productoValido)
+        .expect(400);
+
+      expect(response.body).toMatchObject({
+        statusCode: 400,
+        code: 'PRESENTACION_REQUERIDA',
+        message: 'La presentación es obligatoria.',
+      });
+    });
+
+    it('devuelve la presentación en la consulta por id', async () => {
+      const presentacion = {
+        envase: { id: 1, denominacion: 'BOTELLA' },
+        contenido: { cantidad: 500, unidad: 'ml' },
+        texto: 'BOTELLA 500 ml',
+      };
+      productoService.findDtoById.mockResolvedValueOnce({
+        id: 1,
+        denominacion: 'PRODUCTO DE PRUEBA',
+        presentacion,
+      });
+
+      const response = await request(app.getHttpServer())
+        .get('/producto/1')
+        .expect(200);
+
+      expect(response.body.presentacion).toEqual(presentacion);
+      expect(productoService.findDtoById).toHaveBeenCalledWith(1);
+    });
   });
 });

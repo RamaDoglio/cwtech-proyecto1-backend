@@ -53,5 +53,8 @@ export interface IProductoRepository {
   existsByCodigoProveedor(codigoProveedor: string, excludeId: number): Promise<boolean>;
   existsProductosActivosByMarca(marcaId: number): Promise<boolean>;
   existsProductosActivosByLinea(lineaId: number): Promise<boolean>;
+  existsProductosActivosByEnvasePresentacion(
+    envasePresentacionId: number,
+  ): Promise<boolean>;
   isCodigoProveedorDuplicado(codigoProveedor: string | null, id?: number): Promise<boolean>;
 }
