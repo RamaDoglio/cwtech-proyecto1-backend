@@ -24,7 +24,13 @@ import { PresentacionDto } from './presentacion.dto';
  * El precio de venta es derivado por el backend y no forma parte de este contrato.
  */
 export class CreateProductoDto {
-  @Transform(({ value }) => value.trim().toLowerCase())
+  // CR-005: si generarDenominacionAutomatica es true, la denominación no se
+  // valida acá (el backend la genera a partir de Marca + Línea + Presentación)
+  // y cualquier valor enviado en este campo se ignora.
+  @Transform(({ value }) =>
+    typeof value === 'string' ? value.trim().toLowerCase() : value,
+  )
+  @ValidateIf((o) => o.generarDenominacionAutomatica !== true)
   @IsString({ message: 'La denominación debe ser una cadena de texto.' }) // Valida que sea string
   @IsNotEmpty({ message: 'La denominación no puede estar vacía.' }) // Valida que no esté vacía
   @MaxLength(255, { message: 'La denominación no puede estar vacía.' })
@@ -35,7 +41,20 @@ export class CreateProductoDto {
   @Matches(/^[\w áéíóúÁÉÍÓÚñÑ.\-/%]+$/, {
     message: 'La denominación contiene caracteres inválidos ',
   })
-  denominacion: string;
+  denominacion?: string;
+
+  @ApiPropertyOptional({
+    example: false,
+    description:
+      'CR-005: si es true, la denominación se genera automáticamente como ' +
+      '"Marca Línea Presentación" y se ignora cualquier valor enviado en `denominacion`. ' +
+      'Sólo aplica al alta.',
+    default: false,
+  })
+  @IsOptional()
+  @IsBoolean()
+  @Transform(({ value }) => value === 'true' || value === true)
+  generarDenominacionAutomatica?: boolean;
 
   @IsOptional()
   @IsString()
