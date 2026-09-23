@@ -252,6 +252,20 @@ export class Producto {
   }
 
   // ============================================================
+  // Estado de alerta por stock bajo — regla de negocio del dominio
+  // Si stockActual <= stockMinimo y la regla está habilitada, el producto
+  // entra en alerta. La reacción ante la alerta (notificar, listar, etc.)
+  // no corresponde a esta entidad; queda en la capa de aplicación.
+  // ============================================================
+  estaBajoMinimo(): boolean {
+    if (!this.utilizaStockMinimo) {
+      return false;
+    }
+
+    return this.stock <= this.stockMinimo;
+  }
+
+  // ============================================================
   // Cambio de precio — invariante del agregado Producto
   // ============================================================
   cambiarPrecio(
