@@ -1,5 +1,6 @@
 import { IsBoolean, IsInt, IsOptional, IsString, Min } from 'class-validator';
-import { Transform, Type } from 'class-transformer';
+import { Type } from 'class-transformer';
+import { ToBoolean } from 'src/modules/common/decorators/to-boolean.decorator';
 
 export class SearchProductoRapidoDto {
 
@@ -7,11 +8,7 @@ export class SearchProductoRapidoDto {
   @IsString()
   codigo: string;
 
-  @Transform(({ value }) => {
-    if (value === 'true') return true;
-    if (value === 'false') return false;
-    return undefined;
-  })
+  @ToBoolean(false)
   @IsBoolean()
   exacto: boolean = false;
 
