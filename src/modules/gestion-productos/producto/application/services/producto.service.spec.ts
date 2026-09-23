@@ -217,8 +217,8 @@ describe('ProductoService', () => {
           costo: 100,
           porcentaje: 15,
           precio: 115,
-          lineaId: 1,
-          marcaId: 1,
+          linea: { id: 1 },
+          marca: { id: 1 },
           alicuotaIva: 21,
         }),
       );

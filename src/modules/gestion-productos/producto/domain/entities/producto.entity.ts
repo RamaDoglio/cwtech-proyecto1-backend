@@ -51,9 +51,6 @@ export class Producto {
   @Index()
   proveedor: Proveedor;
 
-  @Column({ type: 'int', nullable: true })
-  proveedorId?: number;
-
   /*
   Nota: No usar el enum alciculta iva en @Column
         sino no anda el importar precios 
@@ -144,16 +141,10 @@ export class Producto {
   @JoinColumn({ name: 'linea_id' })
   linea: Linea;
 
-  @Column({ type: 'int', nullable: true })
-  lineaId?: number;
-
   // ==========  MARCA ==========
   @ManyToOne(() => Marca, (marca) => marca.productos)
   @JoinColumn({ name: 'marca_id' })
   marca: Marca;
-
-  @Column({ type: 'int', nullable: true })
-  marcaId?: number;
 
   @Column({ default: false })
   utilizaPack: boolean;
@@ -167,8 +158,8 @@ export class Producto {
   @Column({ type: 'text', nullable: true })
   ubicacion?: string;
 
-  @ManyToOne(() => Producto, (producto) => producto.productosOperacion)
-  productosOperacion: ProductoOperacion;
+  @OneToMany(() => ProductoOperacion, (po) => po.producto)
+  productosOperacion: ProductoOperacion[];
 
   @Column({ type: 'int', default: 0 })
   sistema: number;
