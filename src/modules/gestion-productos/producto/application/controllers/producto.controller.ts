@@ -110,8 +110,14 @@ export class ProductoController {
   )
   @UsePipes(NormalizeDenominacionSearchPipe)
   async searchRapido(@Query() dto: SearchProductoRapidoDto) {
-    const { exacto, codigo, skip, take } = dto;
-    return this.service.findByRapido(codigo, exacto, skip, take);
+    const { exacto, codigo, skip, take, incluirEliminados } = dto;
+    return this.service.findByRapido(
+      codigo,
+      exacto,
+      skip,
+      take,
+      incluirEliminados,
+    );
   }
 
   @Get('search-by')
@@ -138,6 +144,7 @@ export class ProductoController {
       conStock = false,
       skip = 0,
       take = 10,
+      incluirEliminados = false,
     } = dto;
     return this.service.findBy(
       denominacion,
@@ -152,6 +159,7 @@ export class ProductoController {
       conStock,
       skip,
       take,
+      incluirEliminados,
     );
   }
 

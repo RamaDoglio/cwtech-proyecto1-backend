@@ -54,13 +54,15 @@ export class ProductoPersistenceAdapter implements IProductoRepository {
     }
   }
 
-  async remove(producto: Producto): Promise<Producto> {
+  async remove(producto: Producto, usuario: Usuario): Promise<Producto> {
     if (producto.deletedAt) {
       throw new NotFoundException('Entidad ya eliminada.');
     }
 
+    producto.deletedAt = new Date();
+    producto.usuarioDeleted = usuario;
+
     try {
-      // El service ya seteó deletedAt y usuarioDeleted
       return await this.repository.save(producto);
     } catch (error) {
       throw new DatabaseConnectionException(
@@ -177,6 +179,7 @@ export class ProductoPersistenceAdapter implements IProductoRepository {
     conStock: boolean,
     skip: number,
     take: number,
+    incluirEliminados = false,
   ): Promise<{ data: Producto[]; total: number }> {
     const query = this.repository
       .createQueryBuilder('producto')
@@ -186,39 +189,31 @@ export class ProductoPersistenceAdapter implements IProductoRepository {
       .leftJoinAndSelect('producto.proveedor', 'proveedor')
       .leftJoinAndSelect('producto.envasePresentacion', 'envasePresentacion');
 
-    if (denominacion || codigoProveedor || codigoReferencia) {
-      const condiciones: string[] = [];
-      const parametros: any = {};
+    if (denominacion) {
+      query.andWhere('UPPER(producto.denominacion) LIKE UPPER(:denominacion)', {
+        denominacion: `%${denominacion}%`,
+      });
+    }
 
-      if (denominacion) {
-        condiciones.push(
-          `UPPER(producto.denominacion) LIKE UPPER(:denominacion)`,
+    if (codigoProveedor) {
+      if (codProveedorExacto) {
+        query.andWhere(
+          'UPPER(producto.codigoProveedor) = UPPER(:codigoProveedor)',
+          { codigoProveedor },
         );
-        parametros.denominacion = `%${denominacion}%`;
-      }
-
-      if (codigoProveedor) {
-        if (codProveedorExacto) {
-          condiciones.push(
-            `UPPER(producto.codigoProveedor) = UPPER(:codigoProveedor)`,
-          );
-          parametros.codigoProveedor = codigoProveedor;
-        } else {
-          condiciones.push(
-            `UPPER(producto.codigoProveedor) LIKE UPPER(:codigoProveedor)`,
-          );
-          parametros.codigoProveedor = `%${codigoProveedor}%`;
-        }
-      }
-
-      if (codigoReferencia) {
-        condiciones.push(
-          `UPPER(producto.codigoReferencia) LIKE UPPER(:codigoReferencia)`,
+      } else {
+        query.andWhere(
+          'UPPER(producto.codigoProveedor) LIKE UPPER(:codigoProveedor)',
+          { codigoProveedor: `%${codigoProveedor}%` },
         );
-        parametros.codigoReferencia = `%${codigoReferencia}%`;
       }
+    }
 
-      query.andWhere(`(${condiciones.join(' OR ')})`, parametros);
+    if (codigoReferencia) {
+      query.andWhere(
+        'UPPER(producto.codigoReferencia) LIKE UPPER(:codigoReferencia)',
+        { codigoReferencia: `%${codigoReferencia}%` },
+      );
     }
 
     if (marca_id) {
@@ -244,8 +239,10 @@ export class ProductoPersistenceAdapter implements IProductoRepository {
     if (conStock) {
       query.andWhere('producto.stock > 0');
     }
+    if (!incluirEliminados) {
+      query.andWhere('producto.deletedAt IS NULL');
+    }
 
-    query.andWhere('producto.deletedAt IS NULL');
     query.orderBy('producto.denominacion', 'ASC');
     query.skip(skip).take(take);
 
@@ -270,14 +267,18 @@ export class ProductoPersistenceAdapter implements IProductoRepository {
     exacto: boolean,
     skip: number,
     take: number,
+    incluirEliminados = false,
   ): Promise<{ data: Producto[]; total: number }> {
     const query = this.repository
       .createQueryBuilder('producto')
       .leftJoinAndSelect('producto.marca', 'marca')
       .leftJoinAndSelect('producto.linea', 'linea')
       .leftJoinAndSelect('producto.proveedor', 'proveedor')
-      .leftJoinAndSelect('producto.envasePresentacion', 'envasePresentacion')
-      .where('producto.deletedAt IS NULL');
+      .leftJoinAndSelect('producto.envasePresentacion', 'envasePresentacion');
+
+    if (!incluirEliminados) {
+      query.andWhere('producto.deletedAt IS NULL');
+    }
 
     if (codigo) {
       if (exacto) {
@@ -287,11 +288,7 @@ export class ProductoPersistenceAdapter implements IProductoRepository {
         );
       } else {
         query.andWhere(
-          `(
-            producto.codigoProveedor LIKE :codigo OR 
-            producto.codigoReferencia LIKE :codigo OR 
-            producto.denominacion LIKE :codigo
-          )`,
+          '(producto.codigoProveedor LIKE :codigo OR producto.codigoReferencia LIKE :codigo)',
           { codigo: `%${codigo}%` },
         );
       }

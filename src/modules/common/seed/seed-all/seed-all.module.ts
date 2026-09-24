@@ -3,6 +3,7 @@ import { SeedAllService } from './seed-all.service';
 import { SeedAllController } from './seed-all.controller';
 import { SeedOrganizacionService } from '../seed-organizacion/seed-organizacion.service';
 import { SeedFamiliaProductoService } from '../seedFamiliaProducto/seed-familia-producto.service';
+import { SeedProductoService } from '../seed-producto/seed-producto.service';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Linea } from 'src/modules/gestion-productos/linea/domain/entities/linea.entity';
 import { Marca } from 'src/modules/gestion-productos/marca/domain/entities/marca.entity';
@@ -22,6 +23,7 @@ import { Cliente } from 'src/modules/organizacion/cliente/domain/entities/client
 import { CondicionIva } from 'src/modules/gutil/condicion-iva/domain/entities/condicion-iva.entity';
 import { Proveedor } from 'src/modules/organizacion/proveedor/domain/entities/proveedor.entity';
 import { AlicuotaIva } from 'src/modules/gutil/alicuota-iva/domain/entities/alicuota-iva.entity';
+import { SuperLinea } from 'src/modules/gestion-productos/superlinea/domain/entities/superlinea.entity';
 
 @Module({
   imports: [
@@ -31,6 +33,7 @@ import { AlicuotaIva } from 'src/modules/gutil/alicuota-iva/domain/entities/alic
 
       Linea,
       Marca,
+      SuperLinea,
       EnvasePresentacion,
       Producto,
       Empresa,
@@ -51,6 +54,7 @@ import { AlicuotaIva } from 'src/modules/gutil/alicuota-iva/domain/entities/alic
     SeedUsuarioService,
     SeedOrganizacionService,
     SeedFamiliaProductoService,
+    SeedProductoService,
 
   ],
 })

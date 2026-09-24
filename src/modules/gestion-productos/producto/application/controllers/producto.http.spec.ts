@@ -21,6 +21,8 @@ describe('ProductoController HTTP', () => {
     ajustarStockManual: jest.fn(),
     cambiarPrecio: jest.fn(),
     findHistorialPrecios: jest.fn(),
+    findByRapido: jest.fn(),
+    findBy: jest.fn(),
     findDtoById: jest.fn(),
   };
 
@@ -51,6 +53,8 @@ describe('ProductoController HTTP', () => {
       data: [],
       total: 0,
     });
+    productoService.findByRapido.mockResolvedValue({ data: [], total: 0 });
+    productoService.findBy.mockResolvedValue({ data: [], total: 0 });
     const module = await Test.createTestingModule({
       controllers: [ProductoController],
       providers: [{ provide: ProductoService, useValue: productoService }],
@@ -65,6 +69,7 @@ describe('ProductoController HTTP', () => {
         transform: true,
         whitelist: true,
         forbidNonWhitelisted: true,
+        transformOptions: { enableImplicitConversion: true },
       }),
     );
     app.useGlobalFilters(new GlobalExceptionFilter());
@@ -273,6 +278,107 @@ describe('ProductoController HTTP', () => {
       0,
       10,
     );
+  });
+
+  describe('búsqueda rápida por código', () => {
+    it.each([
+      ['true', true],
+      ['false', false],
+    ])('interpreta exacto=%s como %s', async (query, esperado) => {
+      await request(app.getHttpServer())
+        .get('/producto/search-by-rapido')
+        .query({ codigo: 'ACE', exacto: query, skip: 0, take: 10 })
+        .expect(200);
+
+      expect(productoService.findByRapido).toHaveBeenCalledWith(
+        'ACE',
+        esperado,
+        0,
+        10,
+        false,
+      );
+    });
+
+    it('usa exacto=false si no se envía', async () => {
+      await request(app.getHttpServer())
+        .get('/producto/search-by-rapido')
+        .query({ codigo: 'ACE' })
+        .expect(200);
+
+      expect(productoService.findByRapido).toHaveBeenCalledWith(
+        'ACE',
+        false,
+        0,
+        10,
+        false,
+      );
+    });
+  });
+
+  describe('búsqueda filtrada', () => {
+    it.each([
+      ['true', true],
+      ['false', false],
+    ])(
+      'interpreta codProveedorExacto y conStock en %s como %s',
+      async (query, esperado) => {
+        await request(app.getHttpServer())
+          .get('/producto/search-by')
+          .query({
+            codigoProveedor: 'ACE',
+            codProveedorExacto: query,
+            conStock: query,
+          })
+          .expect(200);
+
+        expect(productoService.findBy).toHaveBeenCalledWith(
+          '',
+          '',
+          '',
+          'ACE',
+          esperado,
+          '',
+          undefined,
+          undefined,
+          undefined,
+          esperado,
+          0,
+          10,
+          false,
+        );
+      },
+    );
+
+    it.each([
+      ['true', true],
+      ['false', false],
+    ])('interpreta incluirEliminados=%s como %s', async (query, esperado) => {
+      await request(app.getHttpServer())
+        .get('/producto/search-by')
+        .query({ incluirEliminados: query })
+        .expect(200);
+
+      expect(productoService.findBy).toHaveBeenCalledWith(
+        '', '', '', '', false, '', undefined, undefined, undefined, false, 0, 10,
+        esperado,
+      );
+    });
+  });
+
+  describe('búsqueda rápida con eliminados', () => {
+    it.each([
+      ['true', true],
+      ['false', false],
+    ])('interpreta incluirEliminados=%s como %s', async (query, esperado) => {
+      await request(app.getHttpServer())
+        .get('/producto/search-by-rapido')
+        .query({ codigo: 'ACE', incluirEliminados: query })
+        .expect(200);
+
+      expect(productoService.findByRapido).toHaveBeenCalledWith(
+        'ACE', false, 0, 10, esperado,
+      );
+    });
   });
 
   it('aplica valores por defecto de paginación en el historial de precios', async () => {

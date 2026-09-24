@@ -151,11 +151,7 @@ export class ProductoService {
       throw new NotFoundException(`Usuario con ID ${usuarioId} no encontrado.`);
     }
 
-    // Soft delete: lo aplica la capa de aplicación
-    entity.deletedAt = new Date();
-    entity.usuarioDeleted = usuario;
-
-    await this.repository.remove(entity);
+    await this.repository.remove(entity, usuario);
 
     return MessageFrontUtils.createSimple(
       this.ENTITY_NAME,
@@ -227,12 +223,14 @@ export class ProductoService {
     exacto: boolean,
     skip: number,
     take: number,
+    incluirEliminados = false,
   ): Promise<{ data: GetProductoDto[]; total: number }> {
     const result = await this.repository.findByRapido(
       codigo,
       exacto,
       skip,
       take,
+      incluirEliminados,
     );
     return {
       data: result.data.map(ProductoMapper.toBusquedaDto),
@@ -253,6 +251,7 @@ export class ProductoService {
     conStock: boolean,
     skip: number,
     take: number,
+    incluirEliminados = false,
   ): Promise<{ data: GetProductoDto[]; total: number }> {
     const result = await this.repository.findBy(
       denominacion,
@@ -267,6 +266,7 @@ export class ProductoService {
       conStock,
       skip,
       take,
+      incluirEliminados,
     );
     return {
       data: result.data.map(ProductoMapper.toBusquedaDto),
@@ -501,6 +501,7 @@ export class ProductoService {
     const historialRepository = this.dataSource.getRepository(HistorialPrecio);
     const [rows, total] = await historialRepository.findAndCount({
       where: { productoId },
+      relations: { usuario: true },
       order: { fecha: 'DESC' },
       skip,
       take,
@@ -515,6 +516,7 @@ export class ProductoService {
         motivo: row.motivo,
         fecha: row.fecha,
         usuarioId: row.usuarioId,
+        usuarioDenominacion: row.usuario?.denominacion ?? null,
       })),
       total: PaginacionUtils.totalItems(total),
     };
@@ -768,7 +770,10 @@ export class ProductoService {
       );
     }
 
-    if (productoActual.lineaId == null || productoActual.marcaId == null) {
+    const lineaActualId = productoActual.linea?.id;
+    const marcaActualId = productoActual.marca?.id;
+
+    if (lineaActualId == null || marcaActualId == null) {
       throw new ConflictException(
         `${this.ENTITY_NAME} con ID ${id} en estado inválido: no posee línea o marca.`,
       );
@@ -776,8 +781,8 @@ export class ProductoService {
 
     this.intrinsicValidationService.validarDatosBasicos({
       denominacion: dto.denominacion ?? productoActual.denominacion,
-      marcaId: dto.marcaId ?? productoActual.marcaId,
-      lineaId: dto.lineaId ?? productoActual.lineaId,
+      marcaId: dto.marcaId ?? marcaActualId,
+      lineaId: dto.lineaId ?? lineaActualId,
       alicuotaIva: dto.alicuotaIva ?? productoActual.alicuotaIva,
     });
 
@@ -800,8 +805,8 @@ export class ProductoService {
 
     const { marca, linea } =
       await this.relatedEntitiesValidator.validarYObtenerEntidadesRelacionadas(
-        dto.marcaId ?? productoActual.marcaId,
-        dto.lineaId ?? productoActual.lineaId,
+        dto.marcaId ?? marcaActualId,
+        dto.lineaId ?? lineaActualId,
       );
 
     this.validationService.validarEntidadesRelacionadas(marca, linea);
