@@ -18,7 +18,7 @@ export class AuditoriaMapper {
     dto.deletedAt = entity.deletedAt
       ? FechaUtils.formatFechaHora(entity.deletedAt)
       : '';
-    dto.usuarioCreated = entity.usuarioCreated.denominacion ?? '';
+    dto.usuarioCreated = entity.usuarioCreated?.denominacion ?? '';
     dto.usuarioUpdated = entity.usuarioUpdated?.denominacion ?? '';
     dto.usuarioDeleted = entity.usuarioDeleted?.denominacion ?? '';
 
