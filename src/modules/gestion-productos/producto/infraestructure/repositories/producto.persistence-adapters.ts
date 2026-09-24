@@ -166,6 +166,8 @@ export class ProductoPersistenceAdapter implements IProductoRepository {
 
   async findBy(
     denominacion: string,
+    linea: string,
+    superlinea: string,
     codigoProveedor: string,
     codProveedorExacto: boolean,
     codigoReferencia: string,
@@ -180,42 +182,35 @@ export class ProductoPersistenceAdapter implements IProductoRepository {
       .createQueryBuilder('producto')
       .leftJoinAndSelect('producto.marca', 'marca')
       .leftJoinAndSelect('producto.linea', 'linea')
+      .leftJoinAndSelect('linea.superlinea', 'superlinea')
       .leftJoinAndSelect('producto.proveedor', 'proveedor')
       .leftJoinAndSelect('producto.envasePresentacion', 'envasePresentacion');
 
-    if (denominacion || codigoProveedor || codigoReferencia) {
-      const condiciones: string[] = [];
-      const parametros: any = {};
+    if (denominacion) {
+      query.andWhere('UPPER(producto.denominacion) LIKE UPPER(:denominacion)', {
+        denominacion: `%${denominacion}%`,
+      });
+    }
 
-      if (denominacion) {
-        condiciones.push(
-          `UPPER(producto.denominacion) LIKE UPPER(:denominacion)`,
+    if (codigoProveedor) {
+      if (codProveedorExacto) {
+        query.andWhere(
+          'UPPER(producto.codigoProveedor) = UPPER(:codigoProveedor)',
+          { codigoProveedor },
         );
-        parametros.denominacion = `%${denominacion}%`;
-      }
-
-      if (codigoProveedor) {
-        if (codProveedorExacto) {
-          condiciones.push(
-            `UPPER(producto.codigoProveedor) = UPPER(:codigoProveedor)`,
-          );
-          parametros.codigoProveedor = codigoProveedor;
-        } else {
-          condiciones.push(
-            `UPPER(producto.codigoProveedor) LIKE UPPER(:codigoProveedor)`,
-          );
-          parametros.codigoProveedor = `%${codigoProveedor}%`;
-        }
-      }
-
-      if (codigoReferencia) {
-        condiciones.push(
-          `UPPER(producto.codigoReferencia) LIKE UPPER(:codigoReferencia)`,
+      } else {
+        query.andWhere(
+          'UPPER(producto.codigoProveedor) LIKE UPPER(:codigoProveedor)',
+          { codigoProveedor: `%${codigoProveedor}%` },
         );
-        parametros.codigoReferencia = `%${codigoReferencia}%`;
       }
+    }
 
-      query.andWhere(`(${condiciones.join(' OR ')})`, parametros);
+    if (codigoReferencia) {
+      query.andWhere(
+        'UPPER(producto.codigoReferencia) LIKE UPPER(:codigoReferencia)',
+        { codigoReferencia: `%${codigoReferencia}%` },
+      );
     }
 
     if (marca_id) {
@@ -223,6 +218,17 @@ export class ProductoPersistenceAdapter implements IProductoRepository {
     }
     if (linea_id) {
       query.andWhere('linea.id = :linea_id', { linea_id });
+    }
+    if (linea) {
+      query.andWhere('UPPER(linea.denominacion) LIKE UPPER(:linea)', {
+        linea: `%${linea}%`,
+      });
+    }
+    if (superlinea) {
+      query.andWhere(
+        'UPPER(superlinea.denominacion) LIKE UPPER(:superlinea)',
+        { superlinea: `%${superlinea}%` },
+      );
     }
     if (proveedor_id) {
       query.andWhere('proveedor.id = :proveedor_id', { proveedor_id });
@@ -273,11 +279,7 @@ export class ProductoPersistenceAdapter implements IProductoRepository {
         );
       } else {
         query.andWhere(
-          `(
-            producto.codigoProveedor LIKE :codigo OR 
-            producto.codigoReferencia LIKE :codigo OR 
-            producto.denominacion LIKE :codigo
-          )`,
+          '(producto.codigoProveedor LIKE :codigo OR producto.codigoReferencia LIKE :codigo)',
           { codigo: `%${codigo}%` },
         );
       }

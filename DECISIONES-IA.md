@@ -1,9 +1,8 @@
 # Registro de decisiones asistidas por IA
 
 Bitácora de trazabilidad exigida por la consigna (UTN — Ingeniería y Calidad de Software,
-Proyecto 1). Se registra **una entrada por decisión significativa**, con los mismos criterios
-que el `CLAUDE.md` del frontend (cambios de dominio, esquema, contrato, reglas de negocio,
-tarjetas y CR, decisiones de diseño, deuda técnica, convenciones y estrategia de testing).
+Proyecto 1). Se registra **una entrada por decisión significativa**, según los criterios de
+[`CLAUDE.md`](CLAUDE.md), que son los mismos que usa el frontend.
 
 Las entradas se agregan **al final**, en orden cronológico. No se reescribe la historia: si una
 decisión se revierte, se agrega una entrada nueva que la revierte y se enlaza a la anterior.
@@ -368,3 +367,190 @@ del flujo, los DTO ni el mapper.
   denominaciones distintas sin colisionar; repetir exactamente el mismo combo (mismo envase incluido)
   sí dio `409` (duplicado real); alta manual sin el flag, denominación manual ignorada con el flag en
   `true`, y ausencia de regeneración en un `PUT` posterior siguen funcionando igual que antes.
+
+## [2026-09-23] PA-020 — Búsqueda de productos: booleanos de query, búsqueda rápida solo por código y filtro acumulable
+
+- **Tarjeta / CR:** PA-020 (rama `testing`); hallazgos 6 y 7 del informe de testing del equipo
+- **Herramienta:** Claude Opus 5.5 vía Claude Code
+- **Autor/a que condujo la sesión:** Lisandro (PIPICBA)
+- **Link a la conversación:** no disponible (CLI)
+
+### Prompt
+
+Síntesis: analizar el checkbox "Exacto" de la pantalla de productos (buscador rápido del header y
+filtro lateral). El header "explotaba" al clickearlo; en el filtro lateral, al destildarlo y buscar
+"DEMO", no traía nada. Tras el análisis, el equipo decidió que la búsqueda rápida es **únicamente
+por código** y que el filtro lateral es **acumulable (AND)**, y pidió documentarlo acá y en el
+`DECISIONES-IA.md` del front.
+
+### Respuesta / propuesta de la IA
+
+Causa raíz, reproducida contra el server local y aislada con `class-transformer` 0.5.1:
+
+- `main.ts` configura el `ValidationPipe` global con `enableImplicitConversion: true`. Esa
+  conversión corre **antes** del `@Transform` y convierte con `Boolean(...)`:
+  `Boolean("false") === true`. El `@Transform` recibe `true` (booleano) para `"true"` y para
+  `"false"`.
+- `SearchProductoRapidoDto.exacto`: el `@Transform` solo aceptaba strings y devolvía `undefined`,
+  con lo que `@IsBoolean` rechazaba con **400 en todos los casos**.
+- `SearchProductoPaginationWithDto.codProveedorExacto`: aceptaba `true` booleano, así que `false`
+  terminaba en `true` y la búsqueda **siempre era exacta**.
+- `SearchProductoPaginationWithDto.conStock`: mismo `@Transform` que `exacto`, siempre `undefined`,
+  así que el filtro nunca se aplicaba.
+- `producto.http.spec.ts` armaba el `ValidationPipe` **sin** `enableImplicitConversion`, por eso
+  los tests no lo detectaban.
+- Semántica: `findBy` unía denominación, código y código de referencia con `OR`, y `findByRapido`
+  no exacto buscaba también en `denominacion`.
+
+Propuso un decorador `@ToBoolean()` que lee el valor crudo `obj[key]` y, además, corregir la
+semántica de las queries según lo que decidiera el equipo.
+
+### Decisión tomada
+
+- Nuevo `@ToBoolean(valorPorDefecto?)` en `src/modules/common/decorators/to-boolean.decorator.ts`.
+  Acepta `true`/`false`, `'true'`/`'false'`, `'1'`/`'0'` y `1`/`0`; ausente o vacío devuelve el
+  valor por defecto. Se aplica a `exacto`, `codProveedorExacto`, `codReferenciaExacto` y `conStock`.
+- `findByRapido` (búsqueda rápida): **solo por código**. Exacto: `codigoProveedor = :codigo OR
+  codigoReferencia = :codigo`. No exacto: `LIKE` sobre esos dos campos. Sin `denominacion`.
+- `findBy` (filtro lateral): **acumulable**. Cada criterio presente se agrega con su propio
+  `andWhere`.
+- `producto.http.spec.ts`: el `ValidationPipe` replica el de `main.ts`, y hay 5 tests nuevos que
+  verifican que `exacto`, `codProveedorExacto` y `conStock` lleguen al servicio con el valor
+  correcto para `"true"`, `"false"` y ausente.
+
+### Qué se descartó y por qué
+
+- **Quitar `enableImplicitConversion` del pipe global:** otros DTOs dependen de él para convertir
+  números de la query. El cambio afectaba a todo el back para arreglar un problema acotado.
+- **Resolverlo en el front mandando `1`/`0`:** tapa el bug para un solo cliente. Swagger o
+  cualquier otro consumidor seguirían recibiendo `false` como `true`.
+- **Copiar un `@Transform` corregido en cada DTO:** ya había tres variantes distintas del mismo
+  parser, y las tres fallaban por la misma razón. Un único decorador evita que se vuelva a divergir.
+- **Mantener `denominacion` en la búsqueda rápida:** el equipo definió que es solo por código.
+- **Mantener el `OR` en el filtro:** devolvía la unión de los criterios, no la intersección.
+
+### Modificaciones sobre lo generado
+
+Ninguna por ahora; pendiente de revisión del equipo.
+
+### Impacto
+
+- Nuevo: `src/modules/common/decorators/to-boolean.decorator.ts`.
+- Modificados: `src/modules/gestion-productos/producto/dto/search-producto-rapido.dto.ts`,
+  `.../dto/search-producto-pagination-with.dto.ts`,
+  `.../infraestructure/repositories/producto.persistence-adapters.ts` (`findBy`, `findByRapido`) y
+  `.../application/controllers/producto.http.spec.ts`.
+- Endpoints: `GET /producto/search-by-rapido` y `GET /producto/search-by`. La forma del contrato no
+  cambia, pero sí los resultados: la búsqueda rápida ya no matchea por denominación y el filtro
+  combina con `AND`.
+- Front: manejo de errores en `consultar-producto.tsx`. Ver la entrada equivalente en el
+  `DECISIONES-IA.md` del front, que además registra como deuda la paginación y el foco de esa
+  pantalla.
+- Nuevo `CLAUDE.md` en este repo, con las mismas reglas de registro que el front.
+
+### Verificación
+
+- `jest`: 49 suites y 185 tests en verde (antes 180). Los 5 tests nuevos se corrieron también sin
+  el fix de los DTOs: 4 fallan, lo que confirma que detectan el bug.
+- En vivo contra el server local, con el usuario `administrador@gmail.com`:
+  - `search-by-rapido`: 200 con `exacto` en `true` y en `false`. `ACE-001` exacto trae 1; `ACE`
+    exacto trae 0; `ACE` no exacto trae `ACE-001`; `aceite` no exacto trae 0 (no busca por
+    denominación).
+  - `search-by`: `codigoProveedor=ACE&codProveedorExacto=false` trae `ACE-001` (antes 0);
+    `denominacion=ACEITE&codigoProveedor=HAR` trae 0 (antes, con `OR`, habría traído 2);
+    `denominacion=HARINA&codigoProveedor=001&conStock=true` trae `HAR-001`.
+- ESLint del back no corre: la configuración falla en `validateRulesConfig`. Es preexistente y no
+  lo generan estos cambios.
+- **Sin verificar:** `conStock=true` excluyendo productos sin stock (todos los datos semilla tienen
+  stock), y la UI en el navegador.
+
+### Deuda técnica detectada y no resuelta
+
+- `incluirEliminados` repite el patrón roto (`value === 'true' || value === true`) en
+  `common/dto/busquedas/pagination-with-denominacion.dto.ts`,
+  `common/dto/denominacion-empresa-operador.dto.ts` y `gutil/localidad/dto/search-localidad.dto.ts`:
+  `false` llega como `true`. Se corrige con `@ToBoolean()`, pero queda fuera del alcance de
+  producto.
+- `codReferenciaExacto` se valida en el DTO, pero `ProductoController.search` no lo desestructura
+  ni lo pasa al servicio; la referencia siempre se busca con `LIKE`.
+- El seed de usuarios crea `admin@gmail.com` con contraseña `admin`, que no pasa la validación de
+  login (6 a 20 caracteres). No se modificó: el equipo usa la cuenta `administrador`.
+
+## [2026-09-24] Integración — `testing` al día con `develop`, `main` y el PR #31 (PA-029)
+
+- **Tarjeta / CR:** ninguna propia; preparación de PA-053 y PA-055. Integra PA-029 (CR-004), PA-051, PA-024 y PA-031
+- **Herramienta:** Claude Opus 5.5 vía Claude Code
+- **Autor/a que condujo la sesión:** Lisandro (PIPICBA)
+- **Link a la conversación:** no disponible (CLI)
+
+### Prompt
+
+Síntesis: traer a `testing` los últimos cambios de Martina Pineda en `develop` y el PR #31 de
+Ignacio Fumero (PA-029, todavía abierto), teniendo en cuenta que `develop` no contenía `main`;
+analizar el impacto, mergear todo y crear las ramas de PA-053 y PA-055 desde `develop`, al día con
+`develop` y con `testing`.
+
+### Respuesta / propuesta de la IA
+
+- `main` contra `develop`: los 5 commits de `main` que faltaban en `develop` son todos merges de
+  release; `git merge-tree` mostró que mergearlos **no cambia ningún archivo**. El impacto es solo
+  de historia (que `develop`/`testing` "contengan" a `main`).
+- `develop` y `main` del back están protegidas en GitHub: no se puede pushear directo, todo entra
+  por PR.
+- Conflictos de `testing` ← `develop`: los dos lados habían sumado cosas en los mismos lugares
+  (`SuperLinea` en `testing` y `EnvasePresentacion` en `develop` en los módulos del seed; mocks
+  nuevos en `producto.http.spec.ts`; `DECISIONES-IA.md` creado por separado en cada rama).
+- Conflicto con el PR #31: solo los imports de `search-producto-pagination-with.dto.ts`. Sus
+  filtros por Línea y SuperLínea ya usan `andWhere`, compatibles con el filtro acumulable de PA-020.
+- Conflictos semánticos que git no detecta: el spec del adapter de Ignacio esperaba la condición
+  de denominación entre paréntesis (forma del viejo `OR`), y el fixture de presentación de
+  `develop` armaba el producto con `lineaId`/`marcaId`, que `testing` ya había reemplazado por la
+  relación.
+
+### Decisión tomada
+
+- Merges con `--no-ff`: `develop` → `testing`, `main` → `testing` y PR #31 → `testing`.
+- Conflictos resueltos conservando ambos lados. En `DECISIONES-IA.md` se tomó el archivo de
+  `develop` y la entrada de PA-020 quedó al final, por orden cronológico.
+- Spec del adapter de PA-029: la condición de denominación se espera sin paréntesis, como la
+  genera el filtro acumulable. El HTTP spec se adaptó a la nueva firma de `findBy`.
+- Fixture de presentación: `linea: { id: 1 }` y `marca: { id: 1 }` en lugar de `lineaId`/`marcaId`.
+- Ramas `PA-053-Actualizar-datos-de-visualizacion-en-detalles-del-producto` y
+  `PA-055-Comprobar-soft-delete-de-la-lista-de-productos` creadas desde `origin/develop`, con
+  `testing` mergeado.
+- Base local: se aplicó la migración pendiente `AgregarPresentacionProducto1789740326260`, que
+  trajo `develop`.
+
+### Qué se descartó y por qué
+
+- **Rebase de `testing` sobre `develop`:** reescribe commits ya pusheados a una rama compartida.
+- **Crear las ramas de PA desde `testing`:** el equipo pidió que sean hijas de `develop`.
+- **Revertir el filtro acumulable para que pase el spec de PA-029:** el `AND` es una decisión del
+  equipo (PA-020) y el propio test de Ignacio describe "filtros restrictivos".
+- **Arreglar los 3 tests de presentación que fallan:** ya fallan en `develop` puro (ver
+  Verificación); corresponden a PA-024 y no a esta integración.
+
+### Modificaciones sobre lo generado
+
+Ninguna por ahora; pendiente de revisión del equipo.
+
+### Impacto
+
+- Merges en `testing`; `producto.persistence-adapters.spec.ts` (de PA-029), `producto.http.spec.ts`
+  y `producto.service.spec.ts` ajustados.
+- Las ramas de PA-053 y PA-055 incluyen el PR #31 aunque todavía no esté aprobado: cuando se abran
+  sus PRs contra `develop`, van a arrastrar PA-029 y todo lo de `testing` si no se mergeó antes.
+
+### Verificación
+
+- `tsc --noEmit` sin errores después de cada merge.
+- `jest`: 55 suites, 333 de 336 tests en verde. Los 3 que fallan
+  (`ProductoService › presentación (CR-002) › modificación`) fallan igual en `origin/develop`
+  (`0ca0f24c`), verificado en un worktree aparte: 3 fallidos y 30 en verde en ese spec. El error es
+  `Cannot read properties of undefined (reading 'denominacion')`: el cambio de precio pasa por
+  `guardarConHistorialDePrecio`, que ese spec no mockea.
+- **Sin verificar:** la UI contra este back integrado.
+
+### Deuda técnica detectada y no resuelta
+
+- Los 3 tests rotos de presentación en `develop` (arriba).

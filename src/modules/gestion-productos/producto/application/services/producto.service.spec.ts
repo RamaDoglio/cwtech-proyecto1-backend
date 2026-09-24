@@ -135,6 +135,42 @@ describe('ProductoService', () => {
     expect(service).toBeDefined();
   });
 
+  it('combina filtros parciales y conserva una respuesta vacía cuando no hay coincidencias', async () => {
+    mockRepository.findBy.mockResolvedValue({ data: [], total: 0 });
+
+    await expect(
+      service.findBy(
+        'inexistente',
+        'lacteos',
+        'bebidas',
+        '',
+        false,
+        '',
+        0,
+        0,
+        0,
+        false,
+        0,
+        10,
+      ),
+    ).resolves.toEqual({ data: [], total: 0 });
+
+    expect(mockRepository.findBy).toHaveBeenCalledWith(
+      'inexistente',
+      'lacteos',
+      'bebidas',
+      '',
+      false,
+      '',
+      0,
+      0,
+      0,
+      false,
+      0,
+      10,
+    );
+  });
+
   it('revierte el ajuste completo si falla la persistencia del movimiento', async () => {
     const producto = Object.assign(new Producto(), {
       id: 1,
@@ -226,8 +262,8 @@ describe('ProductoService', () => {
           costo: 100,
           porcentaje: 15,
           precio: 115,
-          lineaId: 1,
-          marcaId: 1,
+          linea: { id: 1 },
+          marca: { id: 1 },
           alicuotaIva: 21,
         }),
       );
@@ -632,8 +668,8 @@ describe('ProductoService', () => {
         denominacion: 'PRODUCTO',
         costo: 100,
         porcentaje: 15,
-        lineaId: 1,
-        marcaId: 1,
+        linea: { id: 1 },
+        marca: { id: 1 },
         alicuotaIva: 21,
         envasePresentacionId: null,
         presentacionDimension: null,
