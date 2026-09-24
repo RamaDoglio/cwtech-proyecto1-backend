@@ -1,10 +1,31 @@
 import { IsBoolean, IsInt, IsOptional, IsString, Min } from 'class-validator';
 import { Transform, Type } from 'class-transformer';
+import { ApiPropertyOptional } from '@nestjs/swagger';
 
 export class SearchProductoPaginationWithDto {
+  @ApiPropertyOptional({
+    description: 'Coincidencia parcial e insensible a mayúsculas.',
+    example: 'leche',
+  })
   @IsOptional()
   @IsString()
   denominacion?: string;
+
+  @ApiPropertyOptional({
+    description: 'Denominación parcial de la Línea.',
+    example: 'lacteos',
+  })
+  @IsOptional()
+  @IsString()
+  linea?: string;
+
+  @ApiPropertyOptional({
+    description: 'Denominación parcial de la SuperLínea.',
+    example: 'bebidas',
+  })
+  @IsOptional()
+  @IsString()
+  superlinea?: string;
 
   @IsOptional()
   @IsString()

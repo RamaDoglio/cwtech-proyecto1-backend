@@ -47,6 +47,14 @@ async function bootstrap() {
     .setTitle('Gestión Base - Distribuidora')
     .setDescription('La descripción de las  API  de la distribuidora')
     .setVersion('1.0')
+    .addBearerAuth(
+      {
+        type: 'http',
+        scheme: 'bearer',
+        bearerFormat: 'JWT',
+      },
+      'access-token',
+    )
     .build();
   const documentFactory = () => SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api', app, documentFactory);

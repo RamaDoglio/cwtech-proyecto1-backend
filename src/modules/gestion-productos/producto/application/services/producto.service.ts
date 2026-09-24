@@ -242,6 +242,8 @@ export class ProductoService {
 
   async findBy(
     denominacion: string,
+    linea: string,
+    superlinea: string,
     codigoProveedor: string,
     codProveedorExacto: boolean,
     codigoReferencia: string,
@@ -254,6 +256,8 @@ export class ProductoService {
   ): Promise<{ data: GetProductoDto[]; total: number }> {
     const result = await this.repository.findBy(
       denominacion,
+      linea,
+      superlinea,
       codigoProveedor,
       codProveedorExacto,
       codigoReferencia,

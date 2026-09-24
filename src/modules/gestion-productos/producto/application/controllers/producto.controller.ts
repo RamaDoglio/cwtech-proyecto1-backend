@@ -29,6 +29,7 @@ import {
   ApiOperation,
   ApiParam,
   ApiTags,
+  ApiBearerAuth,
 } from '@nestjs/swagger';
 import { NormalizeCodigoProveedorPipe } from 'src/modules/common/pipes/normalize-codigo-proveedor.pipe';
 import { GetProductoDto } from '../../dto/get-producto.dto';
@@ -50,6 +51,7 @@ import { SearchHistorialPrecioDto } from '../../dto/search-historial-precio.dto'
 
 
 @ApiTags('Gestion Productos')
+@ApiBearerAuth('access-token')
 @Controller('producto')
 @UseGuards(AuthGuard)
 export class ProductoController {
@@ -125,6 +127,8 @@ export class ProductoController {
   async search(@Query() dto: SearchProductoPaginationWithDto) {
     const {
       denominacion = '',
+      linea = '',
+      superlinea = '',
       codProveedorExacto = false,
       codigoProveedor = '',
       codigoReferencia = '',
@@ -137,6 +141,8 @@ export class ProductoController {
     } = dto;
     return this.service.findBy(
       denominacion,
+      linea,
+      superlinea,
       codigoProveedor,
       codProveedorExacto,
       codigoReferencia,
