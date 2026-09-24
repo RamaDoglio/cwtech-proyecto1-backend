@@ -1,4 +1,4 @@
-import { Transform } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import {
   IsString,
   IsNotEmpty,
@@ -13,15 +13,24 @@ import {
   ValidateIf,
   IsPositive,
   Max,
+  IsObject,
+  ValidateNested,
 } from 'class-validator';
 import { AlicuotaIva } from 'src/modules/organizacion/enums/alicuota-iva.enum';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { PresentacionDto } from './presentacion.dto';
 
 /**
  * El precio de venta es derivado por el backend y no forma parte de este contrato.
  */
 export class CreateProductoDto {
-  @Transform(({ value }) => value.trim().toLowerCase())
+  // CR-005: si generarDenominacionAutomatica es true, la denominación no se
+  // valida acá (el backend la genera a partir de Marca + Línea + Presentación)
+  // y cualquier valor enviado en este campo se ignora.
+  @Transform(({ value }) =>
+    typeof value === 'string' ? value.trim().toLowerCase() : value,
+  )
+  @ValidateIf((o) => o.generarDenominacionAutomatica !== true)
   @IsString({ message: 'La denominación debe ser una cadena de texto.' }) // Valida que sea string
   @IsNotEmpty({ message: 'La denominación no puede estar vacía.' }) // Valida que no esté vacía
   @MaxLength(255, { message: 'La denominación no puede estar vacía.' })
@@ -32,7 +41,20 @@ export class CreateProductoDto {
   @Matches(/^[\w áéíóúÁÉÍÓÚñÑ.\-/%]+$/, {
     message: 'La denominación contiene caracteres inválidos ',
   })
-  denominacion: string;
+  denominacion?: string;
+
+  @ApiPropertyOptional({
+    example: false,
+    description:
+      'CR-005: si es true, la denominación se genera automáticamente como ' +
+      '"Marca Línea Presentación" y se ignora cualquier valor enviado en `denominacion`. ' +
+      'Sólo aplica al alta.',
+    default: false,
+  })
+  @IsOptional()
+  @IsBoolean()
+  @Transform(({ value }) => value === 'true' || value === true)
+  generarDenominacionAutomatica?: boolean;
 
   @IsOptional()
   @IsString()
@@ -154,5 +176,18 @@ export class CreateProductoDto {
   @IsInt({ message: 'El usuarioCreatedId debe ser un número entero.' })
   usuarioCreatedId: number;
 
-
+  // Opcional en el DTO a propósito: la obligatoriedad es una regla de dominio
+  // con su propio código (PRESENTACION_REQUERIDA) y UpdateProductoDto la hereda
+  // como opcional.
+  @ApiPropertyOptional({
+    type: () => PresentacionDto,
+    nullable: true,
+    description:
+      'Obligatoria en el alta (PA-023 §5). Las reglas se validan en el dominio.',
+  })
+  @IsOptional()
+  @IsObject({ message: 'La presentación debe ser un objeto.' })
+  @ValidateNested()
+  @Type(() => PresentacionDto)
+  presentacion?: PresentacionDto | null;
 }

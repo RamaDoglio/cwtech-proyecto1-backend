@@ -79,6 +79,7 @@ export class ProductoPersistenceAdapter implements IProductoRepository {
         .createQueryBuilder('producto')
         .leftJoinAndSelect('producto.linea', 'linea')
         .leftJoinAndSelect('producto.marca', 'marca')
+        .leftJoinAndSelect('producto.envasePresentacion', 'envasePresentacion')
         .where('producto.id = :id', { id })
         .andWhere('producto.deletedAt IS NULL')
         .getOne();
@@ -179,7 +180,8 @@ export class ProductoPersistenceAdapter implements IProductoRepository {
       .createQueryBuilder('producto')
       .leftJoinAndSelect('producto.marca', 'marca')
       .leftJoinAndSelect('producto.linea', 'linea')
-      .leftJoinAndSelect('producto.proveedor', 'proveedor');
+      .leftJoinAndSelect('producto.proveedor', 'proveedor')
+      .leftJoinAndSelect('producto.envasePresentacion', 'envasePresentacion');
 
     if (denominacion) {
       query.andWhere('UPPER(producto.denominacion) LIKE UPPER(:denominacion)', {
@@ -252,6 +254,7 @@ export class ProductoPersistenceAdapter implements IProductoRepository {
       .leftJoinAndSelect('producto.marca', 'marca')
       .leftJoinAndSelect('producto.linea', 'linea')
       .leftJoinAndSelect('producto.proveedor', 'proveedor')
+      .leftJoinAndSelect('producto.envasePresentacion', 'envasePresentacion')
       .where('producto.deletedAt IS NULL');
 
     if (codigo) {
@@ -284,7 +287,8 @@ export class ProductoPersistenceAdapter implements IProductoRepository {
       const query = this.repository
         .createQueryBuilder('producto')
         .leftJoinAndSelect('producto.marca', 'marca')
-        .leftJoinAndSelect('producto.linea', 'linea');
+        .leftJoinAndSelect('producto.linea', 'linea')
+        .leftJoinAndSelect('producto.envasePresentacion', 'envasePresentacion');
 
       query.andWhere('producto.deletedAt IS NULL');
       query.orderBy('producto.denominacion', 'ASC');
@@ -393,6 +397,21 @@ export class ProductoPersistenceAdapter implements IProductoRepository {
     const count = await this.repository
       .createQueryBuilder('producto')
       .where('producto.linea_id = :lineaId', { lineaId })
+      .andWhere('producto.deletedAt IS NULL')
+      .limit(1)
+      .getCount();
+
+    return count > 0;
+  }
+
+  async existsProductosActivosByEnvasePresentacion(
+    envasePresentacionId: number,
+  ): Promise<boolean> {
+    const count = await this.repository
+      .createQueryBuilder('producto')
+      .where('producto.envase_presentacion_id = :envasePresentacionId', {
+        envasePresentacionId,
+      })
       .andWhere('producto.deletedAt IS NULL')
       .limit(1)
       .getCount();

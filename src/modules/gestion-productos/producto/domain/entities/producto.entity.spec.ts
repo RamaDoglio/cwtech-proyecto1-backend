@@ -4,6 +4,9 @@ import { TipoMovimientoStock } from './movimiento-stock.entity';
 import { MotivoRequeridoException } from '../../../../common/exceptions/motivo-requerido.exception';
 import { StockNegativoException } from '../../../../common/exceptions/stock-negativo.exception';
 import { PrecioInvalidoException } from '../../../../common/exceptions/precio-invalido.exception';
+import { PresentacionRequeridaException } from '../../../../common/exceptions/presentacion-requerida.exception';
+import { Presentacion } from '../value-objects/presentacion.vo';
+import { EnvasePresentacion } from '../../../envase-presentacion/domain/entities/envase-presentacion.entity';
 
 describe('Producto.ajustarStock', () => {
   let producto: Producto;
@@ -184,5 +187,124 @@ describe('Producto.cambiarPrecio', () => {
       expect(producto.precio).toBe(100);
       expect(producto.historialPrecios).toHaveLength(0);
     });
+  });
+});
+
+describe('Producto.estaBajoMinimo', () => {
+  let producto: Producto;
+
+  beforeEach(() => {
+    producto = new Producto();
+    producto.id = 1;
+    producto.stock = 5;
+    producto.stockMinimo = 10;
+    producto.utilizaStockMinimo = true;
+  });
+
+  it('debe devolver true cuando el stock está por debajo del mínimo', () => {
+    expect(producto.estaBajoMinimo()).toBe(true);
+  });
+
+  it('debe devolver true cuando el stock es igual al mínimo', () => {
+    producto.stock = 10;
+
+    expect(producto.estaBajoMinimo()).toBe(true);
+  });
+
+  it('debe devolver false cuando el stock supera el mínimo', () => {
+    producto.stock = 15;
+
+    expect(producto.estaBajoMinimo()).toBe(false);
+  });
+
+  it('debe devolver false cuando la regla está deshabilitada', () => {
+    producto.utilizaStockMinimo = false;
+
+    expect(producto.estaBajoMinimo()).toBe(false);
+  });
+});
+
+describe('Producto — presentación', () => {
+  let producto: Producto;
+
+  const envase = (id: number, denominacion: string) =>
+    Object.assign(new EnvasePresentacion(), { id, denominacion });
+  const botella = envase(1, 'BOTELLA');
+  const bolsa = envase(2, 'BOLSA');
+
+  const botella500 = () =>
+    Presentacion.crear({ envaseId: 1, cantidad: 500, unidad: 'ml' });
+
+  const columnas = (p: Producto) => [
+    p.envasePresentacionId,
+    p.presentacionDimension,
+    p.presentacionMagnitudBase,
+  ];
+
+  beforeEach(() => {
+    producto = new Producto();
+    producto.id = 1;
+    producto.denominacion = 'ACEITE GIRASOL NATURA';
+  });
+
+  it('un producto sin las columnas cargadas no tiene presentación', () => {
+    expect(producto.obtenerPresentacion()).toBeNull();
+  });
+
+  it('asigna BOTELLA 500 ml en las columnas y en la relación', () => {
+    const presentacion = botella500();
+
+    producto.asignarPresentacion(presentacion, botella);
+
+    expect(columnas(producto)).toEqual([1, 'VOLUMEN', 500]);
+    expect(producto.envasePresentacion).toBe(botella);
+    expect(producto.obtenerPresentacion()?.equals(presentacion)).toBe(true);
+  });
+
+  it('reemplaza la presentación por BOLSA 1 kg', () => {
+    producto.asignarPresentacion(botella500(), botella);
+
+    producto.asignarPresentacion(
+      Presentacion.crear({ envaseId: 2, cantidad: 1, unidad: 'kg' }),
+      bolsa,
+    );
+
+    expect(columnas(producto)).toEqual([2, 'MASA', 1000]);
+    expect(producto.envasePresentacion).toBe(bolsa);
+  });
+
+  it('exige que el envase recibido sea el de la presentación', () => {
+    expect(() => producto.asignarPresentacion(botella500(), bolsa)).toThrow(
+      'El envase indicado no corresponde al de la presentación.',
+    );
+    expect(() => producto.asignarPresentacion(botella500())).toThrow(
+      'El envase indicado no corresponde al de la presentación.',
+    );
+    expect(producto.obtenerPresentacion()).toBeNull();
+  });
+
+  it('no deja quitar una presentación cargada y conserva las columnas', () => {
+    producto.asignarPresentacion(botella500(), botella);
+
+    expect(() => producto.asignarPresentacion(null)).toThrow(
+      PresentacionRequeridaException,
+    );
+    expect(columnas(producto)).toEqual([1, 'VOLUMEN', 500]);
+  });
+
+  it('con null, un producto anterior a CR-002 sigue sin presentación', () => {
+    producto.envasePresentacionId = null;
+    producto.presentacionDimension = null;
+    producto.presentacionMagnitudBase = null;
+
+    expect(() => producto.asignarPresentacion(null)).not.toThrow();
+    expect(columnas(producto)).toEqual([null, null, null]);
+    expect(producto.obtenerPresentacion()).toBeNull();
+  });
+
+  it('no modifica la denominación (A3)', () => {
+    producto.asignarPresentacion(botella500(), botella);
+
+    expect(producto.denominacion).toBe('ACEITE GIRASOL NATURA');
   });
 });

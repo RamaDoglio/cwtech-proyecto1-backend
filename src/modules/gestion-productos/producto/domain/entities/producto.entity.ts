@@ -25,6 +25,9 @@ import {
 } from './movimiento-stock.entity';
 import { HistorialPrecio } from './historial-precio.entity';
 import { StockNegativoException } from '../../../../common/exceptions/stock-negativo.exception';
+import { PresentacionRequeridaException } from '../../../../common/exceptions/presentacion-requerida.exception';
+import { Presentacion } from '../value-objects/presentacion.vo';
+import { EnvasePresentacion } from '../../../envase-presentacion/domain/entities/envase-presentacion.entity';
 
 @Entity('producto')
 export class Producto {
@@ -167,6 +170,30 @@ export class Producto {
   @Column({ type: 'text', nullable: true })
   codigoReferencia?: string | null;
 
+  // ========== PRESENTACIÓN (CR-002; reglas en PA-023) ==========
+  // Value Object Presentacion (envase + contenido) persistido en tres
+  // columnas. Las tres en null significan que el producto no tiene
+  // presentación (anterior a CR-002). Las restricciones CHECK están en la
+  // migración AgregarPresentacionProducto.
+  // Una relación = una columna: envasePresentacionId y envasePresentacion
+  // apuntan a la misma columna envase_presentacion_id.
+  @Index('IDX_producto_envase_presentacion_id')
+  @Column({ name: 'envase_presentacion_id', type: 'int', nullable: true })
+  envasePresentacionId: number | null;
+
+  @ManyToOne(() => EnvasePresentacion, { nullable: true })
+  @JoinColumn({
+    name: 'envase_presentacion_id',
+    foreignKeyConstraintName: 'FK_producto_envase_presentacion',
+  })
+  envasePresentacion?: EnvasePresentacion | null;
+
+  @Column({ type: 'varchar', length: 10, nullable: true })
+  presentacionDimension: string | null;
+
+  @Column({ type: 'int', nullable: true })
+  presentacionMagnitudBase: number | null;
+
   // ========= Movimiento-Stock =============
 
   @OneToMany(() => MovimientoStock, (movimiento) => movimiento.producto, {
@@ -216,6 +243,20 @@ export class Producto {
   }
 
   // ============================================================
+  // Estado de alerta por stock bajo — regla de negocio del dominio
+  // Si stockActual <= stockMinimo y la regla está habilitada, el producto
+  // entra en alerta. La reacción ante la alerta (notificar, listar, etc.)
+  // no corresponde a esta entidad; queda en la capa de aplicación.
+  // ============================================================
+  estaBajoMinimo(): boolean {
+    if (!this.utilizaStockMinimo) {
+      return false;
+    }
+
+    return this.stock <= this.stockMinimo;
+  }
+
+  // ============================================================
   // Cambio de precio — invariante del agregado Producto
   // ============================================================
   cambiarPrecio(
@@ -240,5 +281,73 @@ export class Producto {
     this.precio = precioNuevo;
 
     return historial;
+  }
+
+  // ============================================================
+  // Presentación — invariante del agregado Producto (PA-023 §5)
+  // ============================================================
+  obtenerPresentacion(): Presentacion | null {
+    return Presentacion.desdePersistencia({
+      envasePresentacionId: this.envasePresentacionId ?? null,
+      presentacionDimension: this.presentacionDimension ?? null,
+      presentacionMagnitudBase: this.presentacionMagnitudBase ?? null,
+    });
+  }
+
+  // `envase` es el envase ya validado por el servicio (existe y está activo).
+  // Se asignan la columna y la relación juntas para que TypeORM no guarde un
+  // envase viejo que haya quedado cargado en la relación.
+  // No modifica `denominacion`: la denominación automática está fuera del
+  // alcance de CR-002 (aclaración A3 del plan).
+  asignarPresentacion(
+    presentacion: Presentacion | null,
+    envase?: EnvasePresentacion,
+  ): void {
+    if (presentacion === null) {
+      // Invariante: una presentación cargada no se puede quitar. Los productos
+      // anteriores a CR-002 siguen sin presentación hasta que se les cargue una.
+      if (this.tienePresentacion()) {
+        throw new PresentacionRequeridaException();
+      }
+      return;
+    }
+
+    if (!envase || envase.id !== presentacion.envaseId) {
+      throw new Error('El envase indicado no corresponde al de la presentación.');
+    }
+
+    const columnas = presentacion.aPersistencia();
+    this.envasePresentacionId = columnas.envasePresentacionId;
+    this.envasePresentacion = envase;
+    this.presentacionDimension = columnas.presentacionDimension;
+    this.presentacionMagnitudBase = columnas.presentacionMagnitudBase;
+  }
+
+  private tienePresentacion(): boolean {
+    return (
+      this.envasePresentacionId != null ||
+      this.presentacionDimension != null ||
+      this.presentacionMagnitudBase != null
+    );
+  }
+
+  // ============================================================
+  // Denominación automática — sólo al alta (CR-005). "Marca + Línea +
+  // Presentación", con el envase incluido (ej. "COCA-COLA GASEOSAS BOTELLA
+  // 500 ml"): sin el envase, "Coca-Cola Gaseosas 500 ml" en botella y en
+  // lata generarían el mismo string y, como la denominación es única en
+  // todo el sistema, la segunda alta fallaría por una colisión que no es
+  // un duplicado real. No se usa en update: una edición posterior de
+  // marca, línea o presentación no regenera la denominación existente.
+  // ============================================================
+  static generarDenominacionAutomatica(
+    marcaDenominacion: string,
+    lineaDenominacion: string,
+    presentacionTexto: string,
+  ): string {
+    return [marcaDenominacion, lineaDenominacion, presentacionTexto]
+      .map((parte) => parte.trim())
+      .filter((parte) => parte.length > 0)
+      .join(' ');
   }
 }

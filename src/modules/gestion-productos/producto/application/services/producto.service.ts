@@ -37,6 +37,8 @@ import { MovimientoStock } from '../../domain/entities/movimiento-stock.entity';
 import { HistorialPrecio } from '../../domain/entities/historial-precio.entity';
 import { CambiarPrecioDto } from '../../dto/cambiar-precio.dto';
 import { HistorialPrecioDto } from '../../dto/historial-precio.dto';
+import { Presentacion } from '../../domain/value-objects/presentacion.vo';
+import { PresentacionRequeridaException } from 'src/modules/common/exceptions/presentacion-requerida.exception';
 import { TipoAumento } from 'src/modules/common/enums/tipo-aumento.emun';
 import { Linea } from '../../../linea/domain/entities/linea.entity';
 import { DataSource, EntityManager } from 'typeorm';
@@ -79,7 +81,8 @@ export class ProductoService {
       `Creando un nuevo ${this.ENTITY_NAME} con denominación: ${dto.denominacion}`,
     );
 
-    const { marca, linea, usuario } = await this.validarYPrepararCreacion(dto);
+    const { marca, linea, usuario, presentacion, envase } =
+      await this.validarYPrepararCreacion(dto);
 
     const producto = ProductoMapper.toEntityFromCreateDto(
       dto,
@@ -87,6 +90,7 @@ export class ProductoService {
       marca,
       usuario,
     );
+    producto.asignarPresentacion(presentacion, envase);
 
     const entity = await this.repository.save(producto);
 
@@ -516,14 +520,31 @@ export class ProductoService {
   // VALIDACIONES PRIVADAS
   // ============================================================
   private async validarYPrepararCreacion(dto: CreateProductoDto) {
+    // CR-005: la denominación automática necesita marca, línea y presentación
+    // (envase) resueltos ANTES de poder armar el string, así que ese caso se
+    // arma en un flujo aparte en vez de intercalarse acá.
+    if (dto.generarDenominacionAutomatica === true) {
+      return this.validarYPrepararCreacionConDenominacionAutomatica(dto);
+    }
+
+    // dto.denominacion es opcional en el tipo por CR-005 (generación
+    // automática), pero acá generarDenominacionAutomatica no es true, así que
+    // el ValidationPipe ya exigió que venga (ver create-producto.dto.ts).
     this.intrinsicValidationService.validarDatosBasicos({
-      denominacion: dto.denominacion,
+      denominacion: dto.denominacion!,
       marcaId: dto.marcaId,
       lineaId: dto.lineaId,
       alicuotaIva: dto.alicuotaIva,
     });
 
-    await this.uniquenessValidator.validarDenominacionUnica(dto.denominacion);
+    // PA-023 §5: la presentación es obligatoria en el alta. Se valida antes de
+    // las validaciones que consultan la base.
+    if (dto.presentacion == null) {
+      throw new PresentacionRequeridaException();
+    }
+    const presentacion = Presentacion.crear(dto.presentacion);
+
+    await this.uniquenessValidator.validarDenominacionUnica(dto.denominacion!);
 
     if (dto.codigoProveedor) {
       await this.uniquenessValidator.validarCodigoProveedorUnico(
@@ -540,11 +561,73 @@ export class ProductoService {
 
     this.validationService.validarEntidadesRelacionadas(marca, linea);
 
+    const envase =
+      await this.relatedEntitiesValidator.validarYObtenerEnvasePresentacion(
+        presentacion.envaseId,
+      );
+
     const usuario = await this.usuarioValidator.validarUsuarioExiste(
       dto.usuarioCreatedId,
     );
 
-    return { marca, linea, usuario };
+    return { marca, linea, usuario, presentacion, envase };
+  }
+
+  // CR-005: mismo contrato que validarYPrepararCreacion, pero resuelve marca,
+  // línea y envase primero para poder generar la denominación antes de
+  // validarla. dto.denominacion se sobrescribe con el valor generado
+  // (cualquier valor recibido en el request se ignora).
+  private async validarYPrepararCreacionConDenominacionAutomatica(
+    dto: CreateProductoDto,
+  ) {
+    if (dto.presentacion == null) {
+      throw new PresentacionRequeridaException();
+    }
+    const presentacion = Presentacion.crear(dto.presentacion);
+
+    const { marca, linea } =
+      await this.relatedEntitiesValidator.validarYObtenerEntidadesRelacionadas(
+        dto.marcaId,
+        dto.lineaId,
+      );
+    this.validationService.validarEntidadesRelacionadas(marca, linea);
+
+    const envase =
+      await this.relatedEntitiesValidator.validarYObtenerEnvasePresentacion(
+        presentacion.envaseId,
+      );
+
+    // El envase va incluido: sin él, la misma Marca+Línea+contenido en dos
+    // envases distintos (ej. botella y lata) generaría la misma
+    // denominación y la segunda alta chocaría con una colisión que no es
+    // un duplicado real.
+    dto.denominacion = Producto.generarDenominacionAutomatica(
+      marca.denominacion,
+      linea.denominacion,
+      presentacion.texto(envase.denominacion),
+    );
+
+    this.intrinsicValidationService.validarDatosBasicos({
+      denominacion: dto.denominacion,
+      marcaId: dto.marcaId,
+      lineaId: dto.lineaId,
+      alicuotaIva: dto.alicuotaIva,
+    });
+
+    await this.uniquenessValidator.validarDenominacionUnica(dto.denominacion);
+
+    if (dto.codigoProveedor) {
+      await this.uniquenessValidator.validarCodigoProveedorUnico(
+        dto.codigoProveedor,
+        0,
+      );
+    }
+
+    const usuario = await this.usuarioValidator.validarUsuarioExiste(
+      dto.usuarioCreatedId,
+    );
+
+    return { marca, linea, usuario, presentacion, envase };
   }
 
   private async ajustarStockEnTransaccion(
@@ -697,6 +780,16 @@ export class ProductoService {
       alicuotaIva: dto.alicuotaIva ?? productoActual.alicuotaIva,
     });
 
+    // PA-023 §5: si viene, reemplaza la actual y no se puede quitar. Si no
+    // viene, la presentación guardada no cambia. Las reglas del contenido se
+    // validan acá; el envase, junto con las demás entidades relacionadas.
+    let nuevaPresentacion: Presentacion | null = null;
+    if (dto.presentacion === null) {
+      productoActual.asignarPresentacion(null);
+    } else if (dto.presentacion !== undefined) {
+      nuevaPresentacion = Presentacion.crear(dto.presentacion);
+    }
+
     if (dto.denominacion) {
       await this.uniquenessValidator.validarDenominacionUnica(
         dto.denominacion,
@@ -711,6 +804,14 @@ export class ProductoService {
       );
 
     this.validationService.validarEntidadesRelacionadas(marca, linea);
+
+    if (nuevaPresentacion) {
+      const envase =
+        await this.relatedEntitiesValidator.validarYObtenerEnvasePresentacion(
+          nuevaPresentacion.envaseId,
+        );
+      productoActual.asignarPresentacion(nuevaPresentacion, envase);
+    }
 
     const usuario = await this.usuarioValidator.validarUsuarioExiste(
       dto.usuarioUpdatedId,

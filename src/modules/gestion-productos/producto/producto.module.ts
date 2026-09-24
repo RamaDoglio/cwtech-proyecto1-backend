@@ -7,6 +7,7 @@ import { MovimientoStock } from './domain/entities/movimiento-stock.entity';
 import { ProductoRepository } from './infraestructure/repositories/producto.repository';
 import { LineaModule } from '../linea/linea.module';
 import { MarcaModule } from '../marca/marca.module';
+import { EnvasePresentacionModule } from '../envase-presentacion/envase-presentacion.module';
 import { TypeOrmUnitOfWork } from 'src/modules/common/unit-of-work/type-orm-unit-of-works1';
 import { DataSource } from 'typeorm';
 import { IUnitOfWork } from 'src/modules/common/unit-of-work/iunit-of-work.';
@@ -34,6 +35,7 @@ import { HistorialPrecio } from './domain/entities/historial-precio.entity';
     CommonModule,
     forwardRef(() => LineaModule),
     forwardRef(() => MarcaModule),
+    forwardRef(() => EnvasePresentacionModule),
     ProveedorModule,
     UsuarioModule,
   ],
