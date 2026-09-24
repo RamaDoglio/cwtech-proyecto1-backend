@@ -668,6 +668,7 @@ describe('ProductoService', () => {
         denominacion: 'PRODUCTO',
         costo: 100,
         porcentaje: 15,
+        precio: 115,
         linea: { id: 1 },
         marca: { id: 1 },
         alicuotaIva: 21,
@@ -966,12 +967,8 @@ describe('ProductoService', () => {
       });
 
       it('un cambio posterior de marca, línea o presentación por PUT no regenera la denominación generada al alta', async () => {
-        // precio explícito = costo(100) × margen(15 %) para que la edición no
-        // recalcule el precio: ese camino usa la transacción de historial,
-        // que en este archivo ya falla sin mockear (bug previo, no de CR-005).
         const producto = productoGuardado({
           denominacion: 'COCA-COLA GASEOSAS BOTELLA 500 ml',
-          precio: 115,
           ...botella500,
         });
         mockRepository.findOne.mockResolvedValue(producto);

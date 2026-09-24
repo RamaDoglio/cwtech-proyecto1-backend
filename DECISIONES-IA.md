@@ -527,8 +527,10 @@ analizar el impacto, mergear todo y crear las ramas de PA-053 y PA-055 desde `de
 - **Crear las ramas de PA desde `testing`:** el equipo pidió que sean hijas de `develop`.
 - **Revertir el filtro acumulable para que pase el spec de PA-029:** el `AND` es una decisión del
   equipo (PA-020) y el propio test de Ignacio describe "filtros restrictivos".
-- **Arreglar los 3 tests de presentación que fallan:** ya fallan en `develop` puro (ver
-  Verificación); corresponden a PA-024 y no a esta integración.
+- **Dejar rotos los 3 tests de presentación:** se arreglaron en un segundo paso, a pedido del
+  equipo (ver "Tests rotos y falsos positivos").
+- **Mockear la transacción de historial en esos 3 tests:** ocultaría que el fixture no era
+  realista. Un producto guardado siempre tiene el precio derivado de costo y margen.
 
 ### Modificaciones sobre lo generado
 
@@ -544,13 +546,31 @@ Ninguna por ahora; pendiente de revisión del equipo.
 ### Verificación
 
 - `tsc --noEmit` sin errores después de cada merge.
-- `jest`: 55 suites, 333 de 336 tests en verde. Los 3 que fallan
+- `jest` después de los merges: 55 suites, 333 de 336 tests en verde. Los 3 que fallaban
   (`ProductoService › presentación (CR-002) › modificación`) fallan igual en `origin/develop`
-  (`0ca0f24c`), verificado en un worktree aparte: 3 fallidos y 30 en verde en ese spec. El error es
-  `Cannot read properties of undefined (reading 'denominacion')`: el cambio de precio pasa por
-  `guardarConHistorialDePrecio`, que ese spec no mockea.
+  (`0ca0f24c`), verificado en un worktree aparte: 3 fallidos y 30 en verde en ese spec. El error era
+  `Cannot read properties of undefined (reading 'denominacion')`. Con el arreglo del fixture
+  quedan 336 de 336.
 - **Sin verificar:** la UI contra este back integrado.
 
-### Deuda técnica detectada y no resuelta
+### Tests rotos y falsos positivos
 
-- Los 3 tests rotos de presentación en `develop` (arriba).
+- **Los 3 tests de presentación** (y el error de test que arrastraba el PR #31, que eran esos
+  mismos 3: en su rama sola daban 327 de 330). El fixture `productoGuardado` tenía costo 100 y
+  margen 15 % pero no `precio`. Al editar, el precio "cambiaba" de 0 a 115 y el update tomaba el
+  camino de la transacción con historial, que esos tests no mockean. Se agregó `precio: 115` al
+  fixture y se quitó el comentario del test de CR-005 que lo atribuía a un "bug previo". El camino
+  con cambio de precio ya tiene su propio test ("recalcula el precio y registra el cambio en el
+  historial en una única transacción").
+- **Tests que pasaban cuando deberían haber fallado:**
+  - `producto.http.spec.ts` armaba el `ValidationPipe` sin `enableImplicitConversion`, a
+    diferencia de `main.ts`: los booleanos de query "funcionaban" en el test y no en producción.
+    Corregido en PA-020.
+  - El borrado de producto no tenía ningún test: `mockRepository.remove` estaba declarado pero
+    nadie lo ejercitaba. Por eso el soft delete roto desde `a07ce54f` (11/09) no se detectó. Se
+    cubre en PA-055.
+  - Los specs del adapter verifican las condiciones con `toHaveBeenCalledWith`, que no falla si
+    se agrega o se quita una condición. Por ejemplo, quitar `producto.deletedAt IS NULL` de
+    `findBy` no rompe ningún test. Se cubre en PA-055.
+  - 40 tests del back son solo `should be defined` (el placeholder que genera Nest): pasan
+    siempre y no prueban comportamiento. Quedan como deuda.
