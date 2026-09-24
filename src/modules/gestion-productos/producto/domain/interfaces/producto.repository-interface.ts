@@ -35,6 +35,7 @@ export interface IProductoRepository {
     conStock: boolean,
     skip: number,
     take: number,
+    incluirEliminados?: boolean,
   ): Promise<{ data: Producto[]; total: number }>;
 
   findByRapido(
@@ -42,6 +43,7 @@ export interface IProductoRepository {
     exacto: boolean,
     skip: number,
     take: number,
+    incluirEliminados?: boolean,
   ): Promise<{ data: Producto[]; total: number }>;
 
   findByDenominacionCodigoProveedorFiltered(

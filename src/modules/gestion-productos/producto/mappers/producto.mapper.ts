@@ -119,6 +119,7 @@ export class ProductoMapper {
       sistema: entity.sistema,
       codigoReferencia: entity.codigoReferencia ?? '',
       presentacion: ProductoMapper.toPresentacionDto(entity),
+      eliminado: entity.deletedAt != null,
     };
   }
 

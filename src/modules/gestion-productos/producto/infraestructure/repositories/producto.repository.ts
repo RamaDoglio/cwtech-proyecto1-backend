@@ -92,6 +92,7 @@ export class ProductoRepository implements IProductoRepository {
     conStock: boolean,
     skip: number,
     take: number,
+    incluirEliminados = false,
   ): Promise<{ data: Producto[]; total: number }> {
     return this.persistence.findBy(
       denominacion,
@@ -106,6 +107,7 @@ export class ProductoRepository implements IProductoRepository {
       conStock,
       skip,
       take,
+      incluirEliminados,
     );
   }
 
@@ -114,8 +116,15 @@ export class ProductoRepository implements IProductoRepository {
     exacto: boolean,
     skip: number,
     take: number,
+    incluirEliminados = false,
   ): Promise<{ data: Producto[]; total: number }> {
-    return this.persistence.findByRapido(codigo, exacto, skip, take);
+    return this.persistence.findByRapido(
+      codigo,
+      exacto,
+      skip,
+      take,
+      incluirEliminados,
+    );
   }
 
   findByDenominacionCodigoProveedorFiltered(

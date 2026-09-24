@@ -138,4 +138,11 @@ export class GetProductoDto {
     description: 'Presentación del producto (CR-002). null si no tiene.',
   })
   presentacion: PresentacionRespuestaDto | null;
+
+  @ApiProperty({
+    type: Boolean,
+    description: 'true si el producto está dado de baja (soft delete).',
+    example: false,
+  })
+  eliminado: boolean;
 }

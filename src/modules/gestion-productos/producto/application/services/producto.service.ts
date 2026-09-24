@@ -223,12 +223,14 @@ export class ProductoService {
     exacto: boolean,
     skip: number,
     take: number,
+    incluirEliminados = false,
   ): Promise<{ data: GetProductoDto[]; total: number }> {
     const result = await this.repository.findByRapido(
       codigo,
       exacto,
       skip,
       take,
+      incluirEliminados,
     );
     return {
       data: result.data.map(ProductoMapper.toBusquedaDto),
@@ -249,6 +251,7 @@ export class ProductoService {
     conStock: boolean,
     skip: number,
     take: number,
+    incluirEliminados = false,
   ): Promise<{ data: GetProductoDto[]; total: number }> {
     const result = await this.repository.findBy(
       denominacion,
@@ -263,6 +266,7 @@ export class ProductoService {
       conStock,
       skip,
       take,
+      incluirEliminados,
     );
     return {
       data: result.data.map(ProductoMapper.toBusquedaDto),
