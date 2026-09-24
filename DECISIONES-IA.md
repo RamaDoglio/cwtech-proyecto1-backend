@@ -748,6 +748,61 @@ Ninguna por ahora; pendiente de revisión del equipo.
 - **En vivo:** ver la verificación de la rama de unificación.
 - **Sin verificar:** la UI en el navegador.
 
+## [2026-09-24] Seed demo — Catálogo amplio e idempotente para `seed-all`
+
+- **Tarjeta / CR:** ninguna
+- **Herramienta:** OpenAI GPT-5.6-Luna vía OpenCode
+- **Autor/a que condujo la sesión:** —
+- **Link a la conversación:** no disponible (CLI)
+
+### Prompt
+Síntesis: ampliar el seeder ejecutado por `GET /api/seed-all/execute` para cargar muchos más
+datos, cubrir líneas, superlíneas y catálogos relacionados, y garantizar al menos 50 productos.
+El equipo pidió poder probarlo antes de cualquier commit.
+
+### Respuesta / propuesta de la IA
+Se relevó el seed existente y se encontró que ya cargaba organización, 7 líneas, 3 marcas,
+8 envases y solo 7 productos. Se propuso ampliar los catálogos y generar un dataset determinista
+de 10 familias de productos con 5 presentaciones cada una.
+
+### Decisión tomada
+- Agregar 6 superlíneas, 22 líneas, 10 marcas y un envase adicional (`TABLETA`), conservando
+  la superlínea migratoria `Sin clasificar`.
+- Generar 50 productos con relaciones a línea, marca, proveedor y envase, presentación válida,
+  precio, costo, stock, stock mínimo y código de referencia.
+- Usar códigos determinísticos (`ACE-001` a `BOL-005`) como clave de idempotencia: al repetir
+  el endpoint no se duplican productos.
+- Mantener los seeds existentes de usuarios y organización; el alcance de esta ampliación se
+  concentra en catálogo y productos.
+- Hacer que un error del seed se propague y no termine en un falso mensaje de éxito.
+
+### Qué se descartó y por qué
+- **Insertar datos con SQL o una migración:** el pedido es un seed ejecutable por endpoint y no
+  un cambio de esquema.
+- **Crear productos sin presentación:** la migración de presentación ya existe y el dataset demo
+  debe ejercitar el contrato actual (`envase + dimensión + magnitud`).
+- **Usar IDs fijos para las relaciones:** los IDs varían entre bases; se resuelven por
+  denominación y código para que el seed sea portable.
+- **Recrear o borrar datos existentes:** rompería la idempotencia y podría eliminar datos del
+  equipo al probar el endpoint.
+
+### Modificaciones sobre lo generado
+Se agregó `TABLETA` como envase porque uno de los productos demo lo necesita. La generación usa
+unidades base (`ml`, `g`, `unidades`) para cumplir el `CHECK` de presentación sin depender del
+servicio HTTP.
+
+### Impacto
+- `seedFamiliaProducto/seed-familia-producto.service.ts`: superlíneas, líneas, marcas y envases.
+- `seed-producto/seed-producto.service.ts`: dataset de 50 productos y relaciones.
+- `seed-producto/seed-producto.module.ts`: repositorio de envases.
+- `seed-all/seed-all.service.ts`: propagación de errores.
+- Endpoint: `GET /api/seed-all/execute`.
+- Sin migraciones ni cambios de contrato HTTP.
+
+### Verificación
+`npm run build` y `git diff --check` pasan. La ejecución real contra MySQL y la comprobación de
+conteos mediante el endpoint quedan pendientes para que el equipo la pruebe; no se hizo commit.
+
 ## [2026-09-24] Unificación — `unificacion-testing-PA-053-PA-055`, rama única para llevar a `develop`
 
 - **Tarjeta / CR:** PA-053 y PA-055, más lo acumulado en testing (PA-020, arreglo de tests y la integración de PA-029)
