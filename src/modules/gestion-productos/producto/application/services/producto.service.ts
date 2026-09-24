@@ -151,11 +151,7 @@ export class ProductoService {
       throw new NotFoundException(`Usuario con ID ${usuarioId} no encontrado.`);
     }
 
-    // Soft delete: lo aplica la capa de aplicación
-    entity.deletedAt = new Date();
-    entity.usuarioDeleted = usuario;
-
-    await this.repository.remove(entity);
+    await this.repository.remove(entity, usuario);
 
     return MessageFrontUtils.createSimple(
       this.ENTITY_NAME,
@@ -227,12 +223,14 @@ export class ProductoService {
     exacto: boolean,
     skip: number,
     take: number,
+    incluirEliminados = false,
   ): Promise<{ data: GetProductoDto[]; total: number }> {
     const result = await this.repository.findByRapido(
       codigo,
       exacto,
       skip,
       take,
+      incluirEliminados,
     );
     return {
       data: result.data.map(ProductoMapper.toBusquedaDto),
@@ -253,6 +251,7 @@ export class ProductoService {
     conStock: boolean,
     skip: number,
     take: number,
+    incluirEliminados = false,
   ): Promise<{ data: GetProductoDto[]; total: number }> {
     const result = await this.repository.findBy(
       denominacion,
@@ -267,6 +266,7 @@ export class ProductoService {
       conStock,
       skip,
       take,
+      incluirEliminados,
     );
     return {
       data: result.data.map(ProductoMapper.toBusquedaDto),

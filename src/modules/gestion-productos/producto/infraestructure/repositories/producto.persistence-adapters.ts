@@ -54,13 +54,15 @@ export class ProductoPersistenceAdapter implements IProductoRepository {
     }
   }
 
-  async remove(producto: Producto): Promise<Producto> {
+  async remove(producto: Producto, usuario: Usuario): Promise<Producto> {
     if (producto.deletedAt) {
       throw new NotFoundException('Entidad ya eliminada.');
     }
 
+    producto.deletedAt = new Date();
+    producto.usuarioDeleted = usuario;
+
     try {
-      // El service ya seteó deletedAt y usuarioDeleted
       return await this.repository.save(producto);
     } catch (error) {
       throw new DatabaseConnectionException(
@@ -177,6 +179,7 @@ export class ProductoPersistenceAdapter implements IProductoRepository {
     conStock: boolean,
     skip: number,
     take: number,
+    incluirEliminados = false,
   ): Promise<{ data: Producto[]; total: number }> {
     const query = this.repository
       .createQueryBuilder('producto')
@@ -236,8 +239,10 @@ export class ProductoPersistenceAdapter implements IProductoRepository {
     if (conStock) {
       query.andWhere('producto.stock > 0');
     }
+    if (!incluirEliminados) {
+      query.andWhere('producto.deletedAt IS NULL');
+    }
 
-    query.andWhere('producto.deletedAt IS NULL');
     query.orderBy('producto.denominacion', 'ASC');
     query.skip(skip).take(take);
 
@@ -262,14 +267,18 @@ export class ProductoPersistenceAdapter implements IProductoRepository {
     exacto: boolean,
     skip: number,
     take: number,
+    incluirEliminados = false,
   ): Promise<{ data: Producto[]; total: number }> {
     const query = this.repository
       .createQueryBuilder('producto')
       .leftJoinAndSelect('producto.marca', 'marca')
       .leftJoinAndSelect('producto.linea', 'linea')
       .leftJoinAndSelect('producto.proveedor', 'proveedor')
-      .leftJoinAndSelect('producto.envasePresentacion', 'envasePresentacion')
-      .where('producto.deletedAt IS NULL');
+      .leftJoinAndSelect('producto.envasePresentacion', 'envasePresentacion');
+
+    if (!incluirEliminados) {
+      query.andWhere('producto.deletedAt IS NULL');
+    }
 
     if (codigo) {
       if (exacto) {

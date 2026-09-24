@@ -24,7 +24,7 @@ import { CambioPreciosMasivoHistorial } from '../../domain/entities/cambio-preci
 import { CambioPreciosMasivoDto } from '../../dto/cambio-precios-masivo.dto';
 import { AlcanceAjustePrecio } from '../../enums/alcance-ajuste-precio.enum';
 import { TipoAumento } from '../../../../common/enums/tipo-aumento.emun';
-import { NotFoundException } from '@nestjs/common';
+import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import { EnvasePresentacion } from '../../../envase-presentacion/domain/entities/envase-presentacion.entity';
 
 // ==================== MOCKS ====================
@@ -168,6 +168,7 @@ describe('ProductoService', () => {
       false,
       0,
       10,
+      false,
     );
   });
 
@@ -591,6 +592,55 @@ describe('ProductoService', () => {
 
       expect(mockEntityManager.update).not.toHaveBeenCalled();
       expect(mockEntityManager.save).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('remove (soft delete)', () => {
+    const usuario = { id: 4, denominacion: 'Jenifer Lopez' };
+    const productoActivo = () =>
+      Object.assign(new Producto(), {
+        id: 7,
+        denominacion: 'MARGARINA 500G',
+        sistema: 0,
+        deletedAt: null,
+      });
+
+    it('delega la baja en el repositorio con el usuario, sin marcarla antes', async () => {
+      const producto = productoActivo();
+      mockRepository.findOne.mockResolvedValue(producto);
+      mockUsuarioService.findOne.mockResolvedValue(usuario);
+      let deletedAtAlDelegar: Date | null | undefined;
+      mockRepository.remove.mockImplementation(async (entidad: Producto) => {
+        deletedAtAlDelegar = entidad.deletedAt;
+        return entidad;
+      });
+
+      const respuesta = await service.remove(7, 4);
+
+      expect(mockRepository.remove).toHaveBeenCalledWith(producto, usuario);
+      // El adapter rechaza con 404 todo producto que ya trae deletedAt.
+      expect(deletedAtAlDelegar).toBeNull();
+      expect(respuesta).toEqual(
+        expect.objectContaining({ mensaje: expect.stringContaining('MARGARINA 500G') }),
+      );
+    });
+
+    it('lanza NotFoundException si el usuario no existe, sin dar de baja', async () => {
+      mockRepository.findOne.mockResolvedValue(productoActivo());
+      mockUsuarioService.findOne.mockResolvedValue(null);
+
+      await expect(service.remove(7, 999)).rejects.toThrow(NotFoundException);
+      expect(mockRepository.remove).not.toHaveBeenCalled();
+    });
+
+    it('no deja dar de baja un producto del sistema', async () => {
+      mockRepository.findOne.mockResolvedValue(
+        Object.assign(productoActivo(), { sistema: 1 }),
+      );
+      mockUsuarioService.findOne.mockResolvedValue(usuario);
+
+      await expect(service.remove(7, 4)).rejects.toThrow(ForbiddenException);
+      expect(mockRepository.remove).not.toHaveBeenCalled();
     });
   });
 

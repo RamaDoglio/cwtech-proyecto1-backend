@@ -60,6 +60,16 @@ describe('ProductoMapper — presentación', () => {
     });
   });
 
+  it.each<[string, Date | null | undefined, boolean]>([
+    ['activo (deletedAt null)', null, false],
+    ['activo (sin deletedAt)', undefined, false],
+    ['dado de baja', new Date('2026-09-24T10:00:00Z'), true],
+  ])('toBusquedaDto marca eliminado para un producto %s', (_caso, deletedAt, eliminado) => {
+    expect(
+      ProductoMapper.toBusquedaDto(producto({ deletedAt: deletedAt ?? undefined })).eliminado,
+    ).toBe(eliminado);
+  });
+
   it('toBusquedaDto funciona pasado suelto a map(), como lo usa el servicio', () => {
     const [dto] = [producto(botella1500)].map(ProductoMapper.toBusquedaDto);
 
