@@ -649,6 +649,16 @@ Ninguna por ahora; pendiente de revisión del equipo.
   siempre.
 - **Sin verificar:** el modal en el navegador.
 
+### Deuda técnica detectada y no resuelta
+
+- **Fechas de creación y modificación adelantadas 3 horas.** MySQL (contenedor en UTC) genera
+  `createdAt` y `updatedAt` con `CURRENT_TIMESTAMP` en UTC, pero TypeORM está configurado con
+  `timezone: '-03:00'` y los lee como si fueran hora local. `deletedAt` lo carga la app y queda
+  bien. Verificado en la base local: a las 00:00 locales, una baja dejó `deletedAt` 00:00 y
+  `updatedAt` 03:00. Afecta a todas las entidades con `@CreateDateColumn` o `@UpdateDateColumn`
+  (en el modal, "Creado" y "Última modificación"). No se corrigió porque cambia el manejo de
+  fechas de todo el sistema: queda pendiente de decisión del equipo.
+
 ## [2026-09-24] PA-055 — Soft delete de productos: la baja se guarda y los eliminados se pueden consultar
 
 - **Tarjeta / CR:** PA-055
