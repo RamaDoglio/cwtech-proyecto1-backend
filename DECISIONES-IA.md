@@ -475,3 +475,82 @@ Ninguna por ahora; pendiente de revisión del equipo.
   ni lo pasa al servicio; la referencia siempre se busca con `LIKE`.
 - El seed de usuarios crea `admin@gmail.com` con contraseña `admin`, que no pasa la validación de
   login (6 a 20 caracteres). No se modificó: el equipo usa la cuenta `administrador`.
+
+## [2026-09-24] Integración — `testing` al día con `develop`, `main` y el PR #31 (PA-029)
+
+- **Tarjeta / CR:** ninguna propia; preparación de PA-053 y PA-055. Integra PA-029 (CR-004), PA-051, PA-024 y PA-031
+- **Herramienta:** Claude Opus 5.5 vía Claude Code
+- **Autor/a que condujo la sesión:** Lisandro (PIPICBA)
+- **Link a la conversación:** no disponible (CLI)
+
+### Prompt
+
+Síntesis: traer a `testing` los últimos cambios de Martina Pineda en `develop` y el PR #31 de
+Ignacio Fumero (PA-029, todavía abierto), teniendo en cuenta que `develop` no contenía `main`;
+analizar el impacto, mergear todo y crear las ramas de PA-053 y PA-055 desde `develop`, al día con
+`develop` y con `testing`.
+
+### Respuesta / propuesta de la IA
+
+- `main` contra `develop`: los 5 commits de `main` que faltaban en `develop` son todos merges de
+  release; `git merge-tree` mostró que mergearlos **no cambia ningún archivo**. El impacto es solo
+  de historia (que `develop`/`testing` "contengan" a `main`).
+- `develop` y `main` del back están protegidas en GitHub: no se puede pushear directo, todo entra
+  por PR.
+- Conflictos de `testing` ← `develop`: los dos lados habían sumado cosas en los mismos lugares
+  (`SuperLinea` en `testing` y `EnvasePresentacion` en `develop` en los módulos del seed; mocks
+  nuevos en `producto.http.spec.ts`; `DECISIONES-IA.md` creado por separado en cada rama).
+- Conflicto con el PR #31: solo los imports de `search-producto-pagination-with.dto.ts`. Sus
+  filtros por Línea y SuperLínea ya usan `andWhere`, compatibles con el filtro acumulable de PA-020.
+- Conflictos semánticos que git no detecta: el spec del adapter de Ignacio esperaba la condición
+  de denominación entre paréntesis (forma del viejo `OR`), y el fixture de presentación de
+  `develop` armaba el producto con `lineaId`/`marcaId`, que `testing` ya había reemplazado por la
+  relación.
+
+### Decisión tomada
+
+- Merges con `--no-ff`: `develop` → `testing`, `main` → `testing` y PR #31 → `testing`.
+- Conflictos resueltos conservando ambos lados. En `DECISIONES-IA.md` se tomó el archivo de
+  `develop` y la entrada de PA-020 quedó al final, por orden cronológico.
+- Spec del adapter de PA-029: la condición de denominación se espera sin paréntesis, como la
+  genera el filtro acumulable. El HTTP spec se adaptó a la nueva firma de `findBy`.
+- Fixture de presentación: `linea: { id: 1 }` y `marca: { id: 1 }` en lugar de `lineaId`/`marcaId`.
+- Ramas `PA-053-Actualizar-datos-de-visualizacion-en-detalles-del-producto` y
+  `PA-055-Comprobar-soft-delete-de-la-lista-de-productos` creadas desde `origin/develop`, con
+  `testing` mergeado.
+- Base local: se aplicó la migración pendiente `AgregarPresentacionProducto1789740326260`, que
+  trajo `develop`.
+
+### Qué se descartó y por qué
+
+- **Rebase de `testing` sobre `develop`:** reescribe commits ya pusheados a una rama compartida.
+- **Crear las ramas de PA desde `testing`:** el equipo pidió que sean hijas de `develop`.
+- **Revertir el filtro acumulable para que pase el spec de PA-029:** el `AND` es una decisión del
+  equipo (PA-020) y el propio test de Ignacio describe "filtros restrictivos".
+- **Arreglar los 3 tests de presentación que fallan:** ya fallan en `develop` puro (ver
+  Verificación); corresponden a PA-024 y no a esta integración.
+
+### Modificaciones sobre lo generado
+
+Ninguna por ahora; pendiente de revisión del equipo.
+
+### Impacto
+
+- Merges en `testing`; `producto.persistence-adapters.spec.ts` (de PA-029), `producto.http.spec.ts`
+  y `producto.service.spec.ts` ajustados.
+- Las ramas de PA-053 y PA-055 incluyen el PR #31 aunque todavía no esté aprobado: cuando se abran
+  sus PRs contra `develop`, van a arrastrar PA-029 y todo lo de `testing` si no se mergeó antes.
+
+### Verificación
+
+- `tsc --noEmit` sin errores después de cada merge.
+- `jest`: 55 suites, 333 de 336 tests en verde. Los 3 que fallan
+  (`ProductoService › presentación (CR-002) › modificación`) fallan igual en `origin/develop`
+  (`0ca0f24c`), verificado en un worktree aparte: 3 fallidos y 30 en verde en ese spec. El error es
+  `Cannot read properties of undefined (reading 'denominacion')`: el cambio de precio pasa por
+  `guardarConHistorialDePrecio`, que ese spec no mockea.
+- **Sin verificar:** la UI contra este back integrado.
+
+### Deuda técnica detectada y no resuelta
+
+- Los 3 tests rotos de presentación en `develop` (arriba).
