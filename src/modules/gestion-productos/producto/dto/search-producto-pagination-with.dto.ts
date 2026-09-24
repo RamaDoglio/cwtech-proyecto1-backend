@@ -1,6 +1,7 @@
 import { IsBoolean, IsInt, IsOptional, IsString, Min } from 'class-validator';
-import { Transform, Type } from 'class-transformer';
+import { Type } from 'class-transformer';
 import { ApiPropertyOptional } from '@nestjs/swagger';
+import { ToBoolean } from 'src/modules/common/decorators/to-boolean.decorator';
 
 export class SearchProductoPaginationWithDto {
   @ApiPropertyOptional({
@@ -35,22 +36,12 @@ export class SearchProductoPaginationWithDto {
   @IsString()
   codigoReferencia?: string;
   
-  @Transform(({ value }) => {
-    if (value === undefined || value === null || value === '') return false;
-    if (value === 'true' || value === true || value === 1 || value === '1') return true;
-    if (value === 'false' || value === false || value === 0 || value === '0') return false;
-    return value;
-  })
+  @ToBoolean(false)
   @IsOptional()
   @IsBoolean()
   codReferenciaExacto: boolean = false;
 
-  @Transform(({ value }) => {
-    if (value === undefined || value === null || value === '') return false;
-    if (value === 'true' || value === true || value === 1 || value === '1') return true;
-    if (value === 'false' || value === false || value === 0 || value === '0') return false;
-    return value;
-  })
+  @ToBoolean(false)
   @IsOptional()
   @IsBoolean()
   codProveedorExacto: boolean = false;
@@ -82,11 +73,7 @@ export class SearchProductoPaginationWithDto {
   proveedorId: number; 
 
   @IsOptional()
-  @Transform(({ value }) => {
-    if (value === 'true') return true;
-    if (value === 'false') return false;
-    return undefined;
-  })
+  @ToBoolean()
   @IsBoolean()
   conStock: boolean;
 

@@ -35,7 +35,7 @@ describe('ProductoPersistenceAdapter.findBy', () => {
   });
 
   it.each([
-    ['denominación', 'leche', '(UPPER(producto.denominacion) LIKE UPPER(:denominacion))', { denominacion: '%leche%' }],
+    ['denominación', 'leche', 'UPPER(producto.denominacion) LIKE UPPER(:denominacion)', { denominacion: '%leche%' }],
     ['línea', 'lacte', 'UPPER(linea.denominacion) LIKE UPPER(:linea)', { linea: '%lacte%' }],
     ['SuperLínea', 'bebid', 'UPPER(superlinea.denominacion) LIKE UPPER(:superlinea)', { superlinea: '%bebid%' }],
   ])('aplica coincidencia parcial por %s', async (_criterio, valor, condicion, parametros) => {
@@ -81,7 +81,7 @@ describe('ProductoPersistenceAdapter.findBy', () => {
     );
 
     expect(query.andWhere).toHaveBeenCalledWith(
-      '(UPPER(producto.denominacion) LIKE UPPER(:denominacion))',
+      'UPPER(producto.denominacion) LIKE UPPER(:denominacion)',
       { denominacion: '%leche%' },
     );
     expect(query.andWhere).toHaveBeenCalledWith(
@@ -93,7 +93,7 @@ describe('ProductoPersistenceAdapter.findBy', () => {
       { superlinea: '%bebid%' },
     );
     expect(query.andWhere.mock.calls[0][0]).toBe(
-      '(UPPER(producto.denominacion) LIKE UPPER(:denominacion))',
+      'UPPER(producto.denominacion) LIKE UPPER(:denominacion)',
     );
     expect(query.andWhere.mock.calls[1][0]).toBe(
       'UPPER(linea.denominacion) LIKE UPPER(:linea)',

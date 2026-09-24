@@ -742,8 +742,8 @@ async seedPersonal() {
     ];
 
     for (const data of entryData) {
-      const exists = await this.condicionIVARepository.findOneBy({
-        denominacion: data.denominacion,
+      const exists = await this.alicuotaIvaRepository.findOneBy({
+        denominacion: data.denominacion.toUpperCase(),
       });
 
       if (!exists) {
