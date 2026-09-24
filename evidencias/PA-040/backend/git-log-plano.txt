@@ -1,0 +1,125 @@
+6013725 | 2026-09-24 | Julian Fermani | Unificacion testing pa 053 pa 055
+ad02103 | 2026-09-24 | PIPICBA | Merge remote-tracking branch 'origin/develop' into testing
+e7aa57b | 2026-09-24 | PIPICBA | docs(ia): registro la unificación de testing, PA-053 y PA-055
+c2b6b6f | 2026-09-24 | PIPICBA | docs(ia): registro la deuda de zona horaria en las fechas de auditoría
+a1ddf79 | 2026-09-23 | PIPICBA | Merge branch 'PA-055-Comprobar-soft-delete-de-la-lista-de-productos' into unificacion-testing-PA-053-PA-055
+29fc2c9 | 2026-09-23 | PIPICBA | Merge branch 'PA-053-Actualizar-datos-de-visualizacion-en-detalles-del-producto' into unificacion-testing-PA-053-PA-055
+9f5a3ed | 2026-09-23 | PIPICBA | Merge branch 'testing' into unificacion-testing-PA-053-PA-055
+59af8e5 | 2026-09-23 | PIPICBA | docs(ia): registro la decisión de PA-055
+e6d5b50 | 2026-09-23 | PIPICBA | docs(ia): registro la decisión de PA-053
+e7ab88b | 2026-09-23 | PIPICBA | test(producto): cubro el soft delete y la búsqueda con eliminados
+d7f6b3e | 2026-09-23 | PIPICBA | feat(producto): permito incluir los productos eliminados en las búsquedas
+28fd2bd | 2026-09-23 | PIPICBA | fix(producto): corrijo el soft delete de productos
+3b31d83 | 2026-09-23 | lisandromedina | Merge pull request #31 from RamaDoglio/PA-029-—-Implementar-búsqueda-por-Denominación/Línea/SuperLínea-
+5f7f4d9 | 2026-09-23 | PIPICBA | Merge branch 'testing' into PA-055-Comprobar-soft-delete-de-la-lista-de-productos
+3e319d7 | 2026-09-23 | PIPICBA | fix(auditoria): evito romper la auditoría de un producto sin creador
+c234f04 | 2026-09-23 | PIPICBA | feat(producto): expongo el responsable en el historial de precios
+5bfab68 | 2026-09-23 | PIPICBA | Merge branch 'testing' into PA-053-Actualizar-datos-de-visualizacion-en-detalles-del-producto
+37aa709 | 2026-09-23 | PIPICBA | docs(ia): registro los tests arreglados y los falsos positivos encontrados
+dc5f82d | 2026-09-23 | PIPICBA | test(producto): completo el precio del fixture de presentación
+c6ee9c6 | 2026-09-23 | PIPICBA | Merge branch 'testing' into PA-055-Comprobar-soft-delete-de-la-lista-de-productos
+336aed7 | 2026-09-23 | PIPICBA | Merge branch 'testing' into PA-053-Actualizar-datos-de-visualizacion-en-detalles-del-producto
+8ed6ab2 | 2026-09-23 | PIPICBA | docs(ia): registro la integración de develop, main y PA-029 en testing
+e2354ae | 2026-09-23 | PIPICBA | test(producto): adapto el fixture de presentación a la relación línea/marca
+20dc37e | 2026-09-23 | PIPICBA | Merge branch 'PA-029-—-Implementar-búsqueda-por-Denominación/Línea/SuperLínea-' into testing
+96d5901 | 2026-09-23 | PIPICBA | Merge branch 'main' into testing
+60ab24e | 2026-09-23 | PIPICBA | Merge branch 'develop' into testing
+0ca0f24 | 2026-09-23 | lisandromedina | Merge pull request #30 from RamaDoglio/test/politica-precio
+1f84fc4 | 2026-09-23 | lisandromedina | Merge pull request #29 from RamaDoglio/PA-051-Implementar-bajoMinimo
+ce2aa10 | 2026-09-23 | Ignacio Fumero Zamudio | PA-029 — Implementar búsqueda por Denominación/Línea/SuperLínea en backend (CR-004)
+4c508f4 | 2026-09-23 | Martina Pineda | feat/PA-051-implementacion-bajoMinimo
+d93c4ff | 2026-09-23 | PIPICBA | PA-020 — Corregir filtro exacto de productos
+14a599b | 2026-09-23 | PIPICBA | docs(ia): agrego reglas y registro de decisiones asistidas por IA
+1cfc2d2 | 2026-09-23 | PIPICBA | test(producto): cubro la lectura de booleanos en las búsquedas
+30da0fa | 2026-09-23 | PIPICBA | fix(producto): busco solo por código en la búsqueda rápida y acumulo filtros
+6b40109 | 2026-09-23 | PIPICBA | fix(producto): corrijo la lectura de booleanos en las búsquedas
+303dfe8 | 2026-09-23 | Martina Pineda | test/ajuste de precio
+ea1090b | 2026-09-22 | PIPICBA | feat(seed): agrego seed de productos de ejemplo
+b7172f7 | 2026-09-22 | PIPICBA | fix(seed): asigno superlínea por defecto en el seed de líneas
+514e873 | 2026-09-22 | PIPICBA | fix(seed): corrijo el chequeo de existencia de alícuota IVA
+764bce4 | 2026-09-22 | PIPICBA | chore: actualizo yarn.lock
+4d3141e | 2026-09-22 | PIPICBA | chore: ignoro package-lock.json
+24931c4 | 2026-09-22 | PIPICBA | fix(producto): reemplazo columnas *Id sueltas por el id de la relación
+bf75fff | 2026-09-22 | UlisesFrancioni | Merge pull request #27 from RamaDoglio/PA-031
+e6292d7 | 2026-09-22 | alex | docs: completar verificación de la corrección del envase (CR-005)
+a009cf8 | 2026-09-22 | alex | test(producto): cubrir generarDenominacionAutomatica a nivel HTTP (CR-005)
+4c2c8d6 | 2026-09-22 | alex | fix(producto): incluir el envase en la denominación automática (CR-005)
+248ab1e | 2026-09-22 | alex | feat(producto): denominación automática al alta (CR-005)
+570974a | 2026-09-22 | Julian Fermani | Release 22/09/2026
+9a69eba | 2026-09-22 | Alexander Massietti | Merge pull request #23 from RamaDoglio/testing
+90ae5d1 | 2026-09-22 | Marti | Merge pull request #24 from RamaDoglio/test/politica-precio
+01948a6 | 2026-09-22 | Marti | Merge pull request #25 from RamaDoglio/PA-024-Implementar-Presentacion-en-backend-CR-002
+31b151a | 2026-09-22 | Julian | hotfix(producto): elimino doble importación DataSource
+991cbca | 2026-09-22 | UlisesFrancioni | Merge branch 'develop' into PA-024-Implementar-Presentacion-en-backend-CR-002
+684c44a | 2026-09-22 | UlisesFrancioni | feat: Presentacion VO y envase como catalogo
+b1502ec | 2026-09-21 | Martina Pineda | test/ajuste de precio - monto fijo
+473156b | 2026-09-21 | Martina Pineda | test/ajuste de precio - porcentaje
+57d611a | 2026-09-21 | Julian Fermani | Release 21/09/2026
+77475d0 | 2026-09-21 | Marti | Merge pull request #21 from RamaDoglio/feature/PA-027-Implementar-SuperLínea-en-backend
+e76bf3a | 2026-09-21 | Julian | fix(superlinea): corrijo validación y baja atómica
+1cba32e | 2026-09-20 | RamaDoglio | feat(superlinea): implementar SuperLínea y relación obligatoria con Línea
+bce9653 | 2026-09-18 | Julian Fermani | Hotfix: registrar historial de precios en la edición directa y ajuste masivo.
+27c82e9 | 2026-09-18 | UlisesFrancioni | fix(producto): registrar historial de precios en la edición y el ajuste masivo
+2ffe47d | 2026-09-17 | Ramiro Doglio | PA- 016 implementar actualizacion masiva de precios back
+45ab4b4 | 2026-09-17 | Martina Pineda | fix:guadar usuario que hace el cambio de precio no se mostraba en la bd
+55c4279 | 2026-09-17 | Marti | Merge pull request #18 from RamaDoglio/PA-018-Implementar-historial-precios
+e0e172f | 2026-09-17 | alex | PA-018: Implementar cambio de precio con trazabilidad e historial
+6538073 | 2026-09-16 | Ignacio Fumero Zamudio | PA-16: Implementar actualizacion masiva de precios
+d5f1451 | 2026-09-16 | Martina Pineda | Resolver conflictos con develop
+0c11cee | 2026-09-16 | Alexander Massietti | Merge pull request #16 from RamaDoglio/feature/PA-012—Alinear-validaciones-y-errores-en-backend
+678d833 | 2026-09-16 | Martina Pineda | feat:PA-016-Actualización masiva de precios
+eda0b5d | 2026-09-16 | RamaDoglio | feat(pa-012): alinear validaciones y normalizar errores HTTP
+16e082f | 2026-09-16 | Martina Pineda | cambios en la tabla
+b6d2b85 | 2026-09-14 | Alexander Massietti | Merge pull request #15 from RamaDoglio/develop
+b149d05 | 2026-09-14 | Julian Fermani | Hotfix: Crear movimiento_stock en bases existentes
+ed62724 | 2026-09-14 | Julian | fix(migracion): creo movimiento de stock en bases existentes
+3df76ab | 2026-09-14 | Ramiro Doglio | Release 14/09/2026
+3c224f0 | 2026-09-14 | Julian Fermani | PA-006 — Exponer endpoint de ajuste de stock
+9475614 | 2026-09-14 | Ramiro Doglio | Merge pull request #11 from RamaDoglio/feature/pa-005-persistir-movimiento-stock
+6f2d11d | 2026-09-14 | Julian | fix(stock): evito desvincular movimientos al actualizar stock
+381f538 | 2026-09-14 | Julian | fix(stock): evito inicializar relaciones de TypeORM
+5f9ca44 | 2026-09-14 | Julian | feat(stock): expongo el endpoint de ajuste manual
+3d7799e | 2026-09-14 | Julian | feat(stock): persisto movimientos de stock de forma atomica
+285621b | 2026-09-14 | Ramiro Doglio | Merge pull request #10 from RamaDoglio/PA-022-revisar-y-retirar-ProductoOperacion-scaffold
+af2c65b | 2026-09-14 | Ramiro Doglio | Merge pull request #7 from RamaDoglio/bugfix/PA-046-Arreglo-Test-Ignorados
+cb59265 | 2026-09-14 | Julian Fermani | PA-011 — Definir matriz común de validaciones
+1a076f3 | 2026-09-13 | UlisesFrancioni | fix(producto-operacion)!: retirar endpoints scaffold sin autenticación
+8db9326 | 2026-09-13 | Ramiro Doglio | Merge pull request #8 from RamaDoglio/pa-015-filtro-proveedor
+1b123c9 | 2026-09-13 | RamaDoglio | Merge branch 'develop' into pa-011-alinear-validaciones-backend
+60e2454 | 2026-09-13 | Martina | feat:pa-015-filtro-proveedor
+130b215 | 2026-09-13 | RamaDoglio | test(controllers): corregir tests ignorados y eliminar exclusiones temporales
+abc5a1c | 2026-09-12 | RamaDoglio | Merge tag 'vProblemas-con-JsonWebToken' into develop
+ca846d4 | 2026-09-12 | RamaDoglio | Merge branch 'hotfix/Problemas-con-JsonWebToken'
+8296534 | 2026-09-12 | RamaDoglio | fix(auth): castear expiresIn a StringValue para compatibilidad con @nestjs/jwt v11
+d4427f0 | 2026-09-12 | RamaDoglio | Merge tag 'vMerge-a-main-12-09' into develop
+f0dbf6d | 2026-09-12 | RamaDoglio | Merge branch 'hotfix/Merge-a-main-12-09'
+b75bc06 | 2026-09-12 | RamaDoglio | fix(docker): fijar Yarn 1.22.22 con Corepack para compatibilidad con yarn.lock v1
+845bc90 | 2026-09-12 | Julian | chore: ignoro mis carpetas de opencode
+5d0b0df | 2026-09-12 | Julian | chore: ignoro mis carpetas de opencode
+66f7ee9 | 2026-09-12 | Julian Fermani | Release: actualizar main desde develop (12/09/2026)
+d53aebf | 2026-09-12 | Julian Fermani | Merge branch 'main' into develop
+97d81dc | 2026-09-11 | Julian Fermani | PA-003: Adaptar frontend a la política de precio
+38011dd | 2026-09-11 | Julian | test(producto): cubro recálculo de precio
+b36548b | 2026-09-11 | Julian | fix(producto): persisto precio y margen derivados
+18ccf22 | 2026-09-11 | Julian Fermani | PA-002: Alinear API de Producto con política de precio
+a79376d | 2026-09-11 | Julian | feat(producto): alineo la API con la política de precio
+a07ce54 | 2026-09-11 | RamaDoglio | feat(producto): implementar MovimientoStock y ajuste de stock con trazabilidad
+a56d0af | 2026-09-11 | Julian Fermani | PA-001: Definir y encapsular política de precio
+cec6105 | 2026-09-11 | Julian | refactor(producto): muevo el cálculo de precio al servicio
+9ef68b8 | 2026-09-11 | Julian | feat(producto): implemento política de precio derivado
+a64269a | 2026-09-09 | PIPICBA | fix(gitIgnore)
+3aa18e8 | 2026-09-09 | RamaDoglio | test(controllers): excluir temporalmente pruebas que fallan por conflicto ESM/CJS en @nestjs/mapped-types
+500fcf4 | 2026-09-08 | alex | fix(validaciones): unificar regex de denominacion en Producto
+c78268b | 2026-09-08 | alex | docs(producto): explicitar que stock es siempre entero (PA-011)
+6307453 | 2026-09-07 | alex | fix(validaciones): acotar CUIT de Cliente/Proveedor a 11 caracteres
+6812d11 | 2026-09-07 | alex | fix(validaciones): obligatoriedad condicional de stockMinimo/cantidadPorPack
+dcc902d | 2026-09-07 | alex | fix(validaciones): agregar rango 0-999 a porcentaje de Producto
+9f59dfc | 2026-09-07 | alex | fix(validaciones): agregar minimo y regla precio>=costo en Producto
+1fe267b | 2026-09-07 | alex | fix(validaciones): exigir al menos un tipo de proveedor en el backend
+e165e55 | 2026-09-07 | alex | fix(validaciones): validar domicilio anidado en Cliente/Proveedor
+243df9d | 2026-08-29 | Julian | docs: agrego URLs de producción al README
+9428d1f | 2026-08-29 | Julian | chore: elimino node_modules del repositorio
+d1a0f5a | 2026-08-29 | Julian | chore: muevo backend a la raíz
+fb0eb63 | 2026-08-27 | Ramiro | fix: run DB migrations on container start
+d9851a2 | 2026-08-27 | Ramiro | Fix: El error es claro: mysql2 v3 no acepta ssl: true (booleano). Aiven exige SSL
+e2b0130 | 2026-08-24 | utnfrvmtrabajo-collab | incial
