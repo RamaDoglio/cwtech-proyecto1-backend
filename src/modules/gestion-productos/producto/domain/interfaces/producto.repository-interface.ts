@@ -24,6 +24,8 @@ export interface IProductoRepository {
   // ===== Consultas paginadas =====
   findBy(
     denominacion: string,
+    linea: string,
+    superlinea: string,
     codigoProveedor: string,
     codProveedorExacto: boolean,
     codigoReferencia: string,

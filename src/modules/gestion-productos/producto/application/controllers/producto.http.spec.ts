@@ -331,6 +331,8 @@ describe('ProductoController HTTP', () => {
 
         expect(productoService.findBy).toHaveBeenCalledWith(
           '',
+          '',
+          '',
           'ACE',
           esperado,
           '',

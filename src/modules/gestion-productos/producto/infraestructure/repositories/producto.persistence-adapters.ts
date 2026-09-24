@@ -166,6 +166,8 @@ export class ProductoPersistenceAdapter implements IProductoRepository {
 
   async findBy(
     denominacion: string,
+    linea: string,
+    superlinea: string,
     codigoProveedor: string,
     codProveedorExacto: boolean,
     codigoReferencia: string,
@@ -180,6 +182,7 @@ export class ProductoPersistenceAdapter implements IProductoRepository {
       .createQueryBuilder('producto')
       .leftJoinAndSelect('producto.marca', 'marca')
       .leftJoinAndSelect('producto.linea', 'linea')
+      .leftJoinAndSelect('linea.superlinea', 'superlinea')
       .leftJoinAndSelect('producto.proveedor', 'proveedor')
       .leftJoinAndSelect('producto.envasePresentacion', 'envasePresentacion');
 
@@ -215,6 +218,17 @@ export class ProductoPersistenceAdapter implements IProductoRepository {
     }
     if (linea_id) {
       query.andWhere('linea.id = :linea_id', { linea_id });
+    }
+    if (linea) {
+      query.andWhere('UPPER(linea.denominacion) LIKE UPPER(:linea)', {
+        linea: `%${linea}%`,
+      });
+    }
+    if (superlinea) {
+      query.andWhere(
+        'UPPER(superlinea.denominacion) LIKE UPPER(:superlinea)',
+        { superlinea: `%${superlinea}%` },
+      );
     }
     if (proveedor_id) {
       query.andWhere('proveedor.id = :proveedor_id', { proveedor_id });
