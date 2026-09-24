@@ -54,13 +54,15 @@ export class ProductoPersistenceAdapter implements IProductoRepository {
     }
   }
 
-  async remove(producto: Producto): Promise<Producto> {
+  async remove(producto: Producto, usuario: Usuario): Promise<Producto> {
     if (producto.deletedAt) {
       throw new NotFoundException('Entidad ya eliminada.');
     }
 
+    producto.deletedAt = new Date();
+    producto.usuarioDeleted = usuario;
+
     try {
-      // El service ya seteó deletedAt y usuarioDeleted
       return await this.repository.save(producto);
     } catch (error) {
       throw new DatabaseConnectionException(

@@ -151,11 +151,7 @@ export class ProductoService {
       throw new NotFoundException(`Usuario con ID ${usuarioId} no encontrado.`);
     }
 
-    // Soft delete: lo aplica la capa de aplicación
-    entity.deletedAt = new Date();
-    entity.usuarioDeleted = usuario;
-
-    await this.repository.remove(entity);
+    await this.repository.remove(entity, usuario);
 
     return MessageFrontUtils.createSimple(
       this.ENTITY_NAME,

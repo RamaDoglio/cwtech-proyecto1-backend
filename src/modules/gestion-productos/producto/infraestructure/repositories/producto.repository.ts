@@ -42,9 +42,9 @@ export class ProductoRepository implements IProductoRepository {
     return this.persistence.save(producto);
   }
 
-  remove(producto: Producto): Promise<Producto> {
+  remove(producto: Producto, usuario: Usuario): Promise<Producto> {
     this.logger.log(`Eliminando ${this.ENTITY_NAME} ID: ${producto.id}`);
-    return this.persistence.remove(producto);
+    return this.persistence.remove(producto, usuario);
   }
 
   // ============================================================

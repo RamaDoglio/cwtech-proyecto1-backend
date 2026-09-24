@@ -11,7 +11,7 @@ import { ProductoConPrecioResuelto } from './producto-con-precio-resuelto.interf
 export interface IProductoRepository {
   // ===== Persistencia =====
   save(producto: Producto): Promise<Producto>;
-  remove(producto: Producto): Promise<Producto>;
+  remove(producto: Producto, usuario: Usuario): Promise<Producto>;
 
   // ===== Consultas individuales =====
   findOne(id: number): Promise<Producto | null>;
