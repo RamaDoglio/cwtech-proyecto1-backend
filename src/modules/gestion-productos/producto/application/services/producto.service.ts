@@ -501,6 +501,7 @@ export class ProductoService {
     const historialRepository = this.dataSource.getRepository(HistorialPrecio);
     const [rows, total] = await historialRepository.findAndCount({
       where: { productoId },
+      relations: { usuario: true },
       order: { fecha: 'DESC' },
       skip,
       take,
@@ -515,6 +516,7 @@ export class ProductoService {
         motivo: row.motivo,
         fecha: row.fecha,
         usuarioId: row.usuarioId,
+        usuarioDenominacion: row.usuario?.denominacion ?? null,
       })),
       total: PaginacionUtils.totalItems(total),
     };

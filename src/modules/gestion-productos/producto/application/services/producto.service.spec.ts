@@ -606,7 +606,8 @@ describe('ProductoService', () => {
             precioNuevo: 150,
             motivo: 'Aumento',
             fecha: new Date('2026-01-02'),
-            usuarioId: 1,
+            usuarioId: 4,
+            usuario: { id: 4, denominacion: 'Jenifer Lopez' },
           },
         ],
         1,
@@ -620,15 +621,47 @@ describe('ProductoService', () => {
       );
       expect(findAndCount).toHaveBeenCalledWith({
         where: { productoId: 1 },
+        relations: { usuario: true },
         order: { fecha: 'DESC' },
         skip: 0,
         take: 10,
       });
       expect(resultado.total).toBe(1);
       expect(resultado.data).toHaveLength(1);
-      expect(resultado.data[0]).toEqual(
-        expect.objectContaining({ id: 2, precioAnterior: 100, precioNuevo: 150 }),
-      );
+      expect(resultado.data[0]).toEqual({
+        id: 2,
+        productoId: 1,
+        precioAnterior: 100,
+        precioNuevo: 150,
+        motivo: 'Aumento',
+        fecha: new Date('2026-01-02'),
+        usuarioId: 4,
+        usuarioDenominacion: 'Jenifer Lopez',
+      });
+    });
+
+    it('devuelve el responsable como null si el cambio no tiene usuario', async () => {
+      mockRepository.findOne.mockResolvedValue({ id: 1 });
+      const findAndCount = jest.fn().mockResolvedValue([
+        [
+          {
+            id: 3,
+            productoId: 1,
+            precioAnterior: 150,
+            precioNuevo: 160,
+            motivo: 'Ajuste masivo',
+            fecha: new Date('2026-01-03'),
+            usuarioId: null,
+            usuario: null,
+          },
+        ],
+        1,
+      ]);
+      mockDataSource.getRepository.mockReturnValue({ findAndCount });
+
+      const resultado = await service.findHistorialPrecios(1, 0, 10);
+
+      expect(resultado.data[0].usuarioDenominacion).toBeNull();
     });
 
     it('lanza NotFoundException si el producto no existe', async () => {
