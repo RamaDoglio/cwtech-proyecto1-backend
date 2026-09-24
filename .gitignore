@@ -3,6 +3,9 @@ dist
 node_modules
 build
 
+# Lockfile (ignored across OSes)
+package-lock.json
+
 # Logs
 logs
 *.log

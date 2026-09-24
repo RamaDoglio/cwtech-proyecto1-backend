@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Linea } from 'src/modules/gestion-productos/linea/domain/entities/linea.entity';
 import { Marca } from 'src/modules/gestion-productos/marca/domain/entities/marca.entity';
+import { SuperLinea } from 'src/modules/gestion-productos/superlinea/domain/entities/superlinea.entity';
 import { EnvasePresentacion } from 'src/modules/gestion-productos/envase-presentacion/domain/entities/envase-presentacion.entity';
 import { Usuario } from 'src/modules/gestion-usuario/usuario/domain/entities/usuario.entity';
 import { Proveedor } from 'src/modules/organizacion/proveedor/domain/entities/proveedor.entity';
@@ -17,6 +18,8 @@ export class SeedFamiliaProductoService {
     @InjectRepository(Marca)
     private readonly marcaRepository: Repository<Marca>,
 
+    @InjectRepository(SuperLinea)
+    private readonly superLineaRepository: Repository<SuperLinea>,
     @InjectRepository(EnvasePresentacion)
     private readonly envasePresentacionRepository: Repository<EnvasePresentacion>,
 
@@ -33,6 +36,17 @@ export class SeedFamiliaProductoService {
 
 
   async seedLineas() {
+    const superLineaDefault = await this.superLineaRepository.findOneBy({
+      denominacion: 'Sin clasificar',
+    });
+
+    if (!superLineaDefault) {
+      console.log(
+        '⚠️ No se encontró la superlínea por defecto "Sin clasificar".',
+      );
+      return;
+    }
+
     const entryData = [
       {
         denominacion: 'Aceites',
@@ -100,9 +114,9 @@ export class SeedFamiliaProductoService {
         const linea = this.lineaRepository.create({
           denominacion: data.denominacion.toUpperCase(),
           sistema: data.sistema,
-
+          superlinea: superLineaDefault,
           usuarioCreatedId: usuarioCreated.id,
-        } as DeepPartial<Linea>); 
+        } as DeepPartial<Linea>);
 
         await this.lineaRepository.save(linea);
         console.log(`✅ Linea "${data.denominacion}" creada.`);

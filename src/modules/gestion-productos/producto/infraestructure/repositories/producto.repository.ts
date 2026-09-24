@@ -81,6 +81,8 @@ export class ProductoRepository implements IProductoRepository {
 
   findBy(
     denominacion: string,
+    linea: string,
+    superlinea: string,
     codigoProveedor: string,
     codProveedorExacto: boolean,
     codigoReferencia: string,
@@ -93,6 +95,8 @@ export class ProductoRepository implements IProductoRepository {
   ): Promise<{ data: Producto[]; total: number }> {
     return this.persistence.findBy(
       denominacion,
+      linea,
+      superlinea,
       codigoProveedor,
       codProveedorExacto,
       codigoReferencia,

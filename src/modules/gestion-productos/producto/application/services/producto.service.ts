@@ -242,6 +242,8 @@ export class ProductoService {
 
   async findBy(
     denominacion: string,
+    linea: string,
+    superlinea: string,
     codigoProveedor: string,
     codProveedorExacto: boolean,
     codigoReferencia: string,
@@ -254,6 +256,8 @@ export class ProductoService {
   ): Promise<{ data: GetProductoDto[]; total: number }> {
     const result = await this.repository.findBy(
       denominacion,
+      linea,
+      superlinea,
       codigoProveedor,
       codProveedorExacto,
       codigoReferencia,
@@ -764,7 +768,10 @@ export class ProductoService {
       );
     }
 
-    if (productoActual.lineaId == null || productoActual.marcaId == null) {
+    const lineaActualId = productoActual.linea?.id;
+    const marcaActualId = productoActual.marca?.id;
+
+    if (lineaActualId == null || marcaActualId == null) {
       throw new ConflictException(
         `${this.ENTITY_NAME} con ID ${id} en estado inválido: no posee línea o marca.`,
       );
@@ -772,8 +779,8 @@ export class ProductoService {
 
     this.intrinsicValidationService.validarDatosBasicos({
       denominacion: dto.denominacion ?? productoActual.denominacion,
-      marcaId: dto.marcaId ?? productoActual.marcaId,
-      lineaId: dto.lineaId ?? productoActual.lineaId,
+      marcaId: dto.marcaId ?? marcaActualId,
+      lineaId: dto.lineaId ?? lineaActualId,
       alicuotaIva: dto.alicuotaIva ?? productoActual.alicuotaIva,
     });
 
@@ -796,8 +803,8 @@ export class ProductoService {
 
     const { marca, linea } =
       await this.relatedEntitiesValidator.validarYObtenerEntidadesRelacionadas(
-        dto.marcaId ?? productoActual.marcaId,
-        dto.lineaId ?? productoActual.lineaId,
+        dto.marcaId ?? marcaActualId,
+        dto.lineaId ?? lineaActualId,
       );
 
     this.validationService.validarEntidadesRelacionadas(marca, linea);

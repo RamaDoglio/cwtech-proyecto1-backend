@@ -17,6 +17,7 @@ import { AuthModule } from './modules/gestion-usuario/auth/auth.module';
 import { RolModule } from './modules/gestion-usuario/rol/rol.module';
 import { SeedAllModule } from './modules/common/seed/seed-all/seed-all.module';
 import { SeedUsuarioModule } from './modules/common/seed/seed-usuario/seed-usuario.module';
+import { SeedProductoModule } from './modules/common/seed/seed-producto/seed-producto.module';
 import { FilesModule } from './modules/common/files/files.module';
 import { ProveedorOperacionModule } from './modules/organizacion/proveedor-operacion/proveedor-operacion.module';
 import { DomicilioModule } from './modules/gutil/domicilio/domicilio.module';
@@ -70,6 +71,7 @@ import { SuperLineaModule } from './modules/gestion-productos/superlinea/superli
     SeedOrganizacionModule,
     SeedAllModule,
     SeedUsuarioModule,
+    SeedProductoModule,
     FilesModule,
     ProveedorOperacionModule,
     DomicilioModule,
