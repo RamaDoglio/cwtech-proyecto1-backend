@@ -1,0 +1,15 @@
+Merge pull request #31 from RamaDoglio/PA-029-—-Implementar-búsqueda-por-Denominación/Línea/SuperLínea-
+Merge pull request #30 from RamaDoglio/test/politica-precio
+Merge pull request #29 from RamaDoglio/PA-051-Implementar-bajoMinimo
+Merge pull request #27 from RamaDoglio/PA-031
+Merge pull request #23 from RamaDoglio/testing
+Merge pull request #24 from RamaDoglio/test/politica-precio
+Merge pull request #25 from RamaDoglio/PA-024-Implementar-Presentacion-en-backend-CR-002
+Merge pull request #21 from RamaDoglio/feature/PA-027-Implementar-SuperLínea-en-backend
+Merge pull request #18 from RamaDoglio/PA-018-Implementar-historial-precios
+Merge pull request #16 from RamaDoglio/feature/PA-012—Alinear-validaciones-y-errores-en-backend
+Merge pull request #15 from RamaDoglio/develop
+Merge pull request #11 from RamaDoglio/feature/pa-005-persistir-movimiento-stock
+Merge pull request #10 from RamaDoglio/PA-022-revisar-y-retirar-ProductoOperacion-scaffold
+Merge pull request #7 from RamaDoglio/bugfix/PA-046-Arreglo-Test-Ignorados
+Merge pull request #8 from RamaDoglio/pa-015-filtro-proveedor

@@ -1,0 +1,5 @@
+* develop
+  remotes/origin/PA-051-Implementar-bajoMinimo
+  remotes/origin/develop
+  remotes/origin/test/politica-precio
+  remotes/origin/testing

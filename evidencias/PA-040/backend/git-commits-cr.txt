@@ -1,0 +1,10 @@
+ce2aa10 PA-029 — Implementar búsqueda por Denominación/Línea/SuperLínea en backend (CR-004)
+bf75fff Merge pull request #27 from RamaDoglio/PA-031
+e6292d7 docs: completar verificación de la corrección del envase (CR-005)
+a009cf8 test(producto): cubrir generarDenominacionAutomatica a nivel HTTP (CR-005)
+4c2c8d6 fix(producto): incluir el envase en la denominación automática (CR-005)
+248ab1e feat(producto): denominación automática al alta (CR-005)
+01948a6 Merge pull request #25 from RamaDoglio/PA-024-Implementar-Presentacion-en-backend-CR-002
+991cbca Merge branch 'develop' into PA-024-Implementar-Presentacion-en-backend-CR-002
+1cba32e feat(superlinea): implementar SuperLínea y relación obligatoria con Línea
+eda0b5d feat(pa-012): alinear validaciones y normalizar errores HTTP

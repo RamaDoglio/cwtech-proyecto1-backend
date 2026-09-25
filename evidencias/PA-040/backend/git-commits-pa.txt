@@ -1,0 +1,51 @@
+e7aa57b docs(ia): registro la unificación de testing, PA-053 y PA-055
+a1ddf79 Merge branch 'PA-055-Comprobar-soft-delete-de-la-lista-de-productos' into unificacion-testing-PA-053-PA-055
+29fc2c9 Merge branch 'PA-053-Actualizar-datos-de-visualizacion-en-detalles-del-producto' into unificacion-testing-PA-053-PA-055
+9f5a3ed Merge branch 'testing' into unificacion-testing-PA-053-PA-055
+59af8e5 docs(ia): registro la decisión de PA-055
+e6d5b50 docs(ia): registro la decisión de PA-053
+3b31d83 Merge pull request #31 from RamaDoglio/PA-029-—-Implementar-búsqueda-por-Denominación/Línea/SuperLínea-
+5f7f4d9 Merge branch 'testing' into PA-055-Comprobar-soft-delete-de-la-lista-de-productos
+5bfab68 Merge branch 'testing' into PA-053-Actualizar-datos-de-visualizacion-en-detalles-del-producto
+c6ee9c6 Merge branch 'testing' into PA-055-Comprobar-soft-delete-de-la-lista-de-productos
+336aed7 Merge branch 'testing' into PA-053-Actualizar-datos-de-visualizacion-en-detalles-del-producto
+8ed6ab2 docs(ia): registro la integración de develop, main y PA-029 en testing
+20dc37e Merge branch 'PA-029-—-Implementar-búsqueda-por-Denominación/Línea/SuperLínea-' into testing
+60ab24e Merge branch 'develop' into testing
+1f84fc4 Merge pull request #29 from RamaDoglio/PA-051-Implementar-bajoMinimo
+ce2aa10 PA-029 — Implementar búsqueda por Denominación/Línea/SuperLínea en backend (CR-004)
+4c508f4 feat/PA-051-implementacion-bajoMinimo
+d93c4ff PA-020 — Corregir filtro exacto de productos
+bf75fff Merge pull request #27 from RamaDoglio/PA-031
+01948a6 Merge pull request #25 from RamaDoglio/PA-024-Implementar-Presentacion-en-backend-CR-002
+991cbca Merge branch 'develop' into PA-024-Implementar-Presentacion-en-backend-CR-002
+77475d0 Merge pull request #21 from RamaDoglio/feature/PA-027-Implementar-SuperLínea-en-backend
+1cba32e feat(superlinea): implementar SuperLínea y relación obligatoria con Línea
+2ffe47d PA- 016 implementar actualizacion masiva de precios back
+55c4279 Merge pull request #18 from RamaDoglio/PA-018-Implementar-historial-precios
+e0e172f PA-018: Implementar cambio de precio con trazabilidad e historial
+6538073 PA-16: Implementar actualizacion masiva de precios
+0c11cee Merge pull request #16 from RamaDoglio/feature/PA-012—Alinear-validaciones-y-errores-en-backend
+678d833 feat:PA-016-Actualización masiva de precios
+eda0b5d feat(pa-012): alinear validaciones y normalizar errores HTTP
+3c224f0 PA-006 — Exponer endpoint de ajuste de stock
+9475614 Merge pull request #11 from RamaDoglio/feature/pa-005-persistir-movimiento-stock
+285621b Merge pull request #10 from RamaDoglio/PA-022-revisar-y-retirar-ProductoOperacion-scaffold
+af2c65b Merge pull request #7 from RamaDoglio/bugfix/PA-046-Arreglo-Test-Ignorados
+cb59265 PA-011 — Definir matriz común de validaciones
+1a076f3 fix(producto-operacion)!: retirar endpoints scaffold sin autenticación
+8db9326 Merge pull request #8 from RamaDoglio/pa-015-filtro-proveedor
+130b215 test(controllers): corregir tests ignorados y eliminar exclusiones temporales
+97d81dc PA-003: Adaptar frontend a la política de precio
+18ccf22 PA-002: Alinear API de Producto con política de precio
+a07ce54 feat(producto): implementar MovimientoStock y ajuste de stock con trazabilidad
+a56d0af PA-001: Definir y encapsular política de precio
+3aa18e8 test(controllers): excluir temporalmente pruebas que fallan por conflicto ESM/CJS en @nestjs/mapped-types
+500fcf4 fix(validaciones): unificar regex de denominacion en Producto
+c78268b docs(producto): explicitar que stock es siempre entero (PA-011)
+6307453 fix(validaciones): acotar CUIT de Cliente/Proveedor a 11 caracteres
+6812d11 fix(validaciones): obligatoriedad condicional de stockMinimo/cantidadPorPack
+dcc902d fix(validaciones): agregar rango 0-999 a porcentaje de Producto
+9f59dfc fix(validaciones): agregar minimo y regla precio>=costo en Producto
+1fe267b fix(validaciones): exigir al menos un tipo de proveedor en el backend
+e165e55 fix(validaciones): validar domicilio anidado en Cliente/Proveedor
