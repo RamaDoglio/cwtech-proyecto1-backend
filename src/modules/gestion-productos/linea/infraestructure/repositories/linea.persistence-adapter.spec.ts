@@ -210,5 +210,18 @@ describe('LineaPersistenceAdapter', () => {
     brokenAudit.getRawOne.mockRejectedValue(new Error('connection'));
     repository.createQueryBuilder.mockReturnValue(brokenAudit);
     await expect(adapter.findByIdConAuditoria(8)).rejects.toBeInstanceOf(Error);
+
+    for (const method of [
+      'findAllListado',
+      'findByDenominacionFiltered',
+      'findAgrupadasPorSuperlinea',
+      'findAllSinSistemaFor',
+    ]) {
+      const brokenQuery = queryBuilder();
+      brokenQuery.getMany.mockRejectedValue(new Error('connection'));
+      brokenQuery.getManyAndCount.mockRejectedValue(new Error('connection'));
+      repository.createQueryBuilder.mockReturnValue(brokenQuery);
+      await expect((adapter as any)[method]('', 0, 10, false)).rejects.toBeInstanceOf(Error);
+    }
   });
 });
