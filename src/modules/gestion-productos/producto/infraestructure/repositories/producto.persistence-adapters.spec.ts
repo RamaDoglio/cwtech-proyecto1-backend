@@ -2,19 +2,30 @@ import { NotFoundException } from '@nestjs/common';
 import { Producto } from '../../domain/entities/producto.entity';
 import { Usuario } from 'src/modules/gestion-usuario/usuario/domain/entities/usuario.entity';
 import { ProductoPersistenceAdapter } from './producto.persistence-adapters';
+import { DatabaseConnectionException } from 'src/modules/common/exceptions/database-connection.exception';
+import { EntityNotFoundException } from 'src/modules/common/exceptions/entity-notFound-exceptions';
+import { NotFoundException } from '@nestjs/common';
 
 const createQueryBuilderMock = (result: [unknown[], number]) => {
   const query = {
     leftJoinAndSelect: jest.fn(),
+    where: jest.fn(),
     andWhere: jest.fn(),
+    limit: jest.fn(),
     orderBy: jest.fn(),
     skip: jest.fn(),
     take: jest.fn(),
     getManyAndCount: jest.fn().mockResolvedValue(result),
+    getMany: jest.fn().mockResolvedValue(result[0]),
+    getOne: jest.fn(),
+    getCount: jest.fn(),
+    getExists: jest.fn(),
   };
 
   query.leftJoinAndSelect.mockReturnValue(query);
+  query.where.mockReturnValue(query);
   query.andWhere.mockReturnValue(query);
+  query.limit.mockReturnValue(query);
   query.orderBy.mockReturnValue(query);
   query.skip.mockReturnValue(query);
   query.take.mockReturnValue(query);
@@ -140,6 +151,126 @@ describe('ProductoPersistenceAdapter.findBy', () => {
         10,
       ),
     ).resolves.toEqual({ data: [], total: 0 });
+  });
+
+  it('aplica todos los filtros de catálogo, stock, orden y paginación', async () => {
+    const query = createQueryBuilderMock([[{ id: 4 }], 1]);
+    repository.createQueryBuilder.mockReturnValue(query);
+
+    await adapter.findBy(
+      'leche',
+      'lacteos',
+      'almacen',
+      'PROV-1',
+      true,
+      'REF-1',
+      2,
+      3,
+      4,
+      true,
+      20,
+      10,
+    );
+
+    expect(query.andWhere).toHaveBeenCalledWith(
+      'UPPER(producto.codigoProveedor) = UPPER(:codigoProveedor)',
+      { codigoProveedor: 'PROV-1' },
+    );
+    expect(query.andWhere).toHaveBeenCalledWith(
+      'UPPER(producto.codigoReferencia) LIKE UPPER(:codigoReferencia)',
+      { codigoReferencia: '%REF-1%' },
+    );
+    expect(query.andWhere).toHaveBeenCalledWith('marca.id = :marca_id', { marca_id: 2 });
+    expect(query.andWhere).toHaveBeenCalledWith('linea.id = :linea_id', { linea_id: 3 });
+    expect(query.andWhere).toHaveBeenCalledWith('proveedor.id = :proveedor_id', { proveedor_id: 4 });
+    expect(query.andWhere).toHaveBeenCalledWith('producto.stock > 0');
+    expect(query.andWhere).toHaveBeenCalledWith('producto.deletedAt IS NULL');
+    expect(query.orderBy).toHaveBeenCalledWith('producto.denominacion', 'ASC');
+    expect(query.skip).toHaveBeenCalledWith(20);
+    expect(query.take).toHaveBeenCalledWith(10);
+  });
+
+  it('busca rápidamente por códigos exactos o parciales y pagina', async () => {
+    const query = createQueryBuilderMock([[{ id: 4 }], 1]);
+    repository.createQueryBuilder.mockReturnValue(query);
+
+    await adapter.findByRapido('ABC', true, 5, 15);
+
+    expect(query.where).toHaveBeenCalledWith('producto.deletedAt IS NULL');
+    expect(query.andWhere).toHaveBeenCalledWith(
+      '(producto.codigoProveedor = :codigo OR producto.codigoReferencia = :codigo)',
+      { codigo: 'ABC' },
+    );
+    expect(query.skip).toHaveBeenCalledWith(5);
+    expect(query.take).toHaveBeenCalledWith(15);
+  });
+
+  it('deduplica IDs antes de consultar productos', async () => {
+    const query = createQueryBuilderMock([[{ id: 1 }], 1]);
+    repository.createQueryBuilder.mockReturnValue(query);
+
+    await adapter.findByIds([1, 1, 2, 2]);
+
+    expect(query.where).toHaveBeenCalledWith('producto.id IN (:...ids)', {
+      ids: [1, 2],
+    });
+  });
+
+  it('devuelve false para un código de proveedor vacío sin consultar', async () => {
+    await expect(adapter.isCodigoProveedorDuplicado('  ')).resolves.toBe(false);
+    expect(repository.createQueryBuilder).not.toHaveBeenCalled();
+  });
+
+  it('consulta existencia de productos activos por Marca', async () => {
+    const query = createQueryBuilderMock([[{ id: 1 }], 1]);
+    query.getCount.mockResolvedValue(1);
+    repository.createQueryBuilder.mockReturnValue(query);
+
+    await expect(adapter.existsProductosActivosByMarca(8)).resolves.toBe(true);
+    expect(query.where).toHaveBeenCalledWith('producto.marca_id = :marcaId', {
+      marcaId: 8,
+    });
+    expect(query.andWhere).toHaveBeenCalledWith('producto.deletedAt IS NULL');
+    expect(query.limit).toHaveBeenCalledWith(1);
+  });
+});
+
+describe('ProductoPersistenceAdapter.persistencia y consultas', () => {
+  const repository = {
+    createQueryBuilder: jest.fn(),
+    save: jest.fn(),
+    findOne: jest.fn(),
+  };
+  let adapter: ProductoPersistenceAdapter;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    adapter = new ProductoPersistenceAdapter(repository as any, {} as any, {} as any);
+  });
+
+  it('envuelve un error de save en DatabaseConnectionException', async () => {
+    repository.save.mockRejectedValue(new Error('connection'));
+
+    await expect(adapter.save({} as any)).rejects.toBeInstanceOf(
+      DatabaseConnectionException,
+    );
+  });
+
+  it('no permite remover un producto ya eliminado', async () => {
+    await expect(adapter.remove({ deletedAt: new Date() } as any)).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
+    expect(repository.save).not.toHaveBeenCalled();
+  });
+
+  it('propaga EntityNotFoundException al buscar un producto inexistente', async () => {
+    const query = createQueryBuilderMock([[], 0]);
+    query.getOne.mockResolvedValue(null);
+    repository.createQueryBuilder.mockReturnValue(query);
+
+    await expect(adapter.findOne(99)).rejects.toBeInstanceOf(
+      EntityNotFoundException,
+    );
   });
 });
 
