@@ -6,6 +6,7 @@ import { Linea } from 'src/modules/gestion-productos/linea/domain/entities/linea
 import { Marca } from 'src/modules/gestion-productos/marca/domain/entities/marca.entity';
 import { Proveedor } from 'src/modules/organizacion/proveedor/domain/entities/proveedor.entity';
 import { Usuario } from 'src/modules/gestion-usuario/usuario/domain/entities/usuario.entity';
+import { EnvasePresentacion } from 'src/modules/gestion-productos/envase-presentacion/domain/entities/envase-presentacion.entity';
 
 @Injectable()
 export class SeedProductoService {
@@ -24,6 +25,9 @@ export class SeedProductoService {
 
     @InjectRepository(Usuario)
     private readonly usuarioRepository: Repository<Usuario>,
+
+    @InjectRepository(EnvasePresentacion)
+    private readonly envaseRepository: Repository<EnvasePresentacion>,
   ) {}
 
   async seedProductos() {
@@ -37,85 +41,41 @@ export class SeedProductoService {
       return;
     }
 
-    const entryData = [
-      {
-        denominacion: 'Aceite Girasol 1.5L',
-        codigoProveedor: 'ACE-001',
-        linea: 'ACEITES',
-        marca: 'CAROYENSE',
-        proveedor: 'PROVEEDOR 1.',
-        alicuotaIva: 21,
-        costo: 800,
-        precio: 1200,
-        stock: 50,
-      },
-      {
-        denominacion: 'Aceitunas Verdes Frasco 200g',
-        codigoProveedor: 'ACT-001',
-        linea: 'ACEITUNAS',
-        marca: 'CIRCE',
-        proveedor: 'PROVEEDOR 1.',
-        alicuotaIva: 21,
-        costo: 350,
-        precio: 550,
-        stock: 80,
-      },
-      {
-        denominacion: 'Azucar Blanca 1Kg',
-        codigoProveedor: 'AZU-001',
-        linea: 'AZUCAR',
-        marca: 'SIN MARCA',
-        proveedor: 'PROVEEDOR 2.',
-        alicuotaIva: 10.5,
-        costo: 500,
-        precio: 750,
-        stock: 120,
-      },
-      {
-        denominacion: 'Bolsas Camiseta x50',
-        codigoProveedor: 'BOL-001',
-        linea: 'BOLSAS',
-        marca: 'SIN MARCA',
-        proveedor: 'PROVEEDOR 2.',
-        alicuotaIva: 21,
-        costo: 200,
-        precio: 350,
-        stock: 200,
-      },
-      {
-        denominacion: 'Chocolate en Barra 100g',
-        codigoProveedor: 'CHO-001',
-        linea: 'CHOCOLATES',
-        marca: 'CIRCE',
-        proveedor: 'PROVEEDOR 1.',
-        alicuotaIva: 21,
-        costo: 400,
-        precio: 650,
-        stock: 60,
-      },
-      {
-        denominacion: 'Harina 0000 1Kg',
-        codigoProveedor: 'HAR-001',
-        linea: 'HARINAS',
-        marca: 'CAROYENSE',
-        proveedor: 'PROVEEDOR 2.',
-        alicuotaIva: 10.5,
-        costo: 300,
-        precio: 480,
-        stock: 150,
-      },
-      {
-        denominacion: 'Margarina 500g',
-        codigoProveedor: 'MAR-001',
-        linea: 'MARGARINAS Y GRASAS',
-        marca: 'SIN MARCA',
-        proveedor: 'PROVEEDOR 1.',
-        alicuotaIva: 21,
-        costo: 450,
-        precio: 700,
-        stock: 40,
-      },
-    ];
+    const catalogos = [
+      ['ACE', 'Aceite de girasol', 'ACEITES', 'NATURA', 'BOTELLA', 'VOLUMEN', 'ml', 1800, 21],
+      ['ARR', 'Arroz largo fino', 'ARROCES', 'MOLINOS', 'BOLSA', 'MASA', 'g', 1100, 10.5],
+      ['GAL', 'Galletitas surtidas', 'GALLETITAS', 'ARCOR', 'PAQUETE', 'MASA', 'g', 900, 21],
+      ['CHO', 'Chocolate con leche', 'CHOCOLATES', 'ARCOR', 'TABLETA', 'MASA', 'g', 1300, 21],
+      ['GAS', 'Gaseosa cola', 'GASEOSAS', 'COCA-COLA', 'BOTELLA', 'VOLUMEN', 'ml', 1600, 21],
+      ['AGU', 'Agua mineral', 'AGUAS', 'NATURA', 'BOTELLA', 'VOLUMEN', 'ml', 700, 21],
+      ['LEC', 'Leche entera', 'LECHES', 'LA SERENISIMA', 'BOTELLA', 'VOLUMEN', 'ml', 1500, 10.5],
+      ['DET', 'Detergente concentrado', 'DETERGENTES', 'AYUDIN', 'BOTELLA', 'VOLUMEN', 'ml', 1200, 21],
+      ['JAB', 'Jabon de tocador', 'JABONES', 'REXONA', 'PAQUETE', 'MASA', 'g', 950, 21],
+      ['BOL', 'Bolsas camiseta', 'BOLSAS', 'SIN MARCA', 'BOLSA', 'UNIDADES', 'unidades', 800, 21],
+    ].map(([codigo, descripcion, linea, marca, envase, dimension, unidad, costo, alicuota]) => ({
+      codigo: codigo as string,
+      descripcion: descripcion as string,
+      linea: linea as string,
+      marca: marca as string,
+      envase: envase as string,
+      dimension: dimension as string,
+      unidad: unidad as string,
+      costo: costo as number,
+      alicuotaIva: alicuota as number,
+    }));
+
+    const cantidades = [500, 900, 1000, 1500, 2000];
+    const entryData = catalogos.flatMap((catalogo) =>
+      cantidades.map((cantidad, index) => ({
+        denominacion: `${catalogo.marca} ${catalogo.descripcion} ${cantidad}${catalogo.unidad}`,
+        codigoProveedor: `${catalogo.codigo}-${String(index + 1).padStart(3, '0')}`,
+        ...catalogo,
+        cantidad,
+        proveedor: index % 2 === 0 ? 'PROVEEDOR 1.' : 'PROVEEDOR 2.',
+        precio: Math.round(catalogo.costo * (1.35 + index * 0.05)),
+        stock: 20 + index * 15,
+      })),
+    );
 
     for (const data of entryData) {
       const exists = await this.productoRepository.findOneBy({
@@ -136,10 +96,13 @@ export class SeedProductoService {
       const proveedor = await this.proveedorRepository.findOneBy({
         denominacion: data.proveedor,
       });
+      const envase = await this.envaseRepository.findOneBy({
+        denominacion: data.envase,
+      });
 
-      if (!linea || !marca || !proveedor) {
+      if (!linea || !marca || !proveedor || !envase) {
         console.log(
-          `⚠️ No se pudo crear "${data.denominacion}": falta linea, marca o proveedor. Corré el seed de familia de producto y organización primero.`,
+          `⚠️ No se pudo crear "${data.denominacion}": falta una relación del catálogo. Corré primero el seed completo.`,
         );
         continue;
       }
@@ -154,6 +117,18 @@ export class SeedProductoService {
         costo: data.costo,
         precio: data.precio,
         stock: data.stock,
+        stockMinimo: 10,
+        utilizaStockMinimo: true,
+        envasePresentacion: envase,
+        envasePresentacionId: envase.id,
+        presentacionDimension: data.dimension,
+        presentacionMagnitudBase:
+          data.dimension === 'VOLUMEN' || data.dimension === 'MASA'
+            ? data.unidad === 'ml' || data.unidad === 'g'
+              ? data.cantidad
+              : data.cantidad * 1000
+            : data.cantidad,
+        codigoReferencia: `REF-${data.codigoProveedor}`,
         usuarioCreated,
       } as DeepPartial<Producto>);
 

@@ -42,9 +42,9 @@ export class ProductoRepository implements IProductoRepository {
     return this.persistence.save(producto);
   }
 
-  remove(producto: Producto): Promise<Producto> {
+  remove(producto: Producto, usuario: Usuario): Promise<Producto> {
     this.logger.log(`Eliminando ${this.ENTITY_NAME} ID: ${producto.id}`);
-    return this.persistence.remove(producto);
+    return this.persistence.remove(producto, usuario);
   }
 
   // ============================================================
@@ -92,6 +92,7 @@ export class ProductoRepository implements IProductoRepository {
     conStock: boolean,
     skip: number,
     take: number,
+    incluirEliminados = false,
   ): Promise<{ data: Producto[]; total: number }> {
     return this.persistence.findBy(
       denominacion,
@@ -106,6 +107,7 @@ export class ProductoRepository implements IProductoRepository {
       conStock,
       skip,
       take,
+      incluirEliminados,
     );
   }
 
@@ -114,8 +116,15 @@ export class ProductoRepository implements IProductoRepository {
     exacto: boolean,
     skip: number,
     take: number,
+    incluirEliminados = false,
   ): Promise<{ data: Producto[]; total: number }> {
-    return this.persistence.findByRapido(codigo, exacto, skip, take);
+    return this.persistence.findByRapido(
+      codigo,
+      exacto,
+      skip,
+      take,
+      incluirEliminados,
+    );
   }
 
   findByDenominacionCodigoProveedorFiltered(

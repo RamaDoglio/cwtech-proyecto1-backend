@@ -77,6 +77,7 @@ describe('ProductoController', () => {
       conStock: false,
       skip: 0,
       take: 10,
+      incluirEliminados: false,
     });
 
     expect(mockProductoService.findBy).toHaveBeenCalledWith(
@@ -92,6 +93,7 @@ describe('ProductoController', () => {
       false,
       0,
       10,
+      false,
     );
   });
 

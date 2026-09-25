@@ -1,0 +1,50 @@
+6013725 (origin/develop) Unificacion testing pa 053 pa 055
+ad02103 (origin/testing) Merge remote-tracking branch 'origin/develop' into testing
+a1ddf79 Merge branch 'PA-055-Comprobar-soft-delete-de-la-lista-de-productos' into unificacion-testing-PA-053-PA-055
+29fc2c9 Merge branch 'PA-053-Actualizar-datos-de-visualizacion-en-detalles-del-producto' into unificacion-testing-PA-053-PA-055
+9f5a3ed Merge branch 'testing' into unificacion-testing-PA-053-PA-055
+3b31d83 (HEAD -> develop) Merge pull request #31 from RamaDoglio/PA-029-—-Implementar-búsqueda-por-Denominación/Línea/SuperLínea-
+5f7f4d9 Merge branch 'testing' into PA-055-Comprobar-soft-delete-de-la-lista-de-productos
+5bfab68 Merge branch 'testing' into PA-053-Actualizar-datos-de-visualizacion-en-detalles-del-producto
+c6ee9c6 Merge branch 'testing' into PA-055-Comprobar-soft-delete-de-la-lista-de-productos
+336aed7 Merge branch 'testing' into PA-053-Actualizar-datos-de-visualizacion-en-detalles-del-producto
+20dc37e Merge branch 'PA-029-—-Implementar-búsqueda-por-Denominación/Línea/SuperLínea-' into testing
+96d5901 Merge branch 'main' into testing
+60ab24e Merge branch 'develop' into testing
+0ca0f24 Merge pull request #30 from RamaDoglio/test/politica-precio
+1f84fc4 Merge pull request #29 from RamaDoglio/PA-051-Implementar-bajoMinimo
+d93c4ff PA-020 — Corregir filtro exacto de productos
+bf75fff Merge pull request #27 from RamaDoglio/PA-031
+570974a (origin/main, origin/HEAD) Release 22/09/2026
+9a69eba Merge pull request #23 from RamaDoglio/testing
+90ae5d1 Merge pull request #24 from RamaDoglio/test/politica-precio
+01948a6 Merge pull request #25 from RamaDoglio/PA-024-Implementar-Presentacion-en-backend-CR-002
+991cbca Merge branch 'develop' into PA-024-Implementar-Presentacion-en-backend-CR-002
+57d611a Release 21/09/2026
+77475d0 Merge pull request #21 from RamaDoglio/feature/PA-027-Implementar-SuperLínea-en-backend
+bce9653 Hotfix: registrar historial de precios en la edición directa y ajuste masivo.
+2ffe47d PA- 016 implementar actualizacion masiva de precios back
+55c4279 Merge pull request #18 from RamaDoglio/PA-018-Implementar-historial-precios
+6538073 PA-16: Implementar actualizacion masiva de precios
+d5f1451 Resolver conflictos con develop
+0c11cee Merge pull request #16 from RamaDoglio/feature/PA-012—Alinear-validaciones-y-errores-en-backend
+b6d2b85 Merge pull request #15 from RamaDoglio/develop
+b149d05 Hotfix: Crear movimiento_stock en bases existentes
+3df76ab Release 14/09/2026
+3c224f0 PA-006 — Exponer endpoint de ajuste de stock
+9475614 Merge pull request #11 from RamaDoglio/feature/pa-005-persistir-movimiento-stock
+285621b Merge pull request #10 from RamaDoglio/PA-022-revisar-y-retirar-ProductoOperacion-scaffold
+af2c65b Merge pull request #7 from RamaDoglio/bugfix/PA-046-Arreglo-Test-Ignorados
+cb59265 PA-011 — Definir matriz común de validaciones
+8db9326 Merge pull request #8 from RamaDoglio/pa-015-filtro-proveedor
+1b123c9 Merge branch 'develop' into pa-011-alinear-validaciones-backend
+abc5a1c Merge tag 'vProblemas-con-JsonWebToken' into develop
+ca846d4 (tag: vProblemas-con-JsonWebToken, main) Merge branch 'hotfix/Problemas-con-JsonWebToken'
+d4427f0 Merge tag 'vMerge-a-main-12-09' into develop
+f0dbf6d (tag: vMerge-a-main-12-09) Merge branch 'hotfix/Merge-a-main-12-09'
+845bc90 chore: ignoro mis carpetas de opencode
+66f7ee9 Release: actualizar main desde develop (12/09/2026)
+d53aebf Merge branch 'main' into develop
+97d81dc PA-003: Adaptar frontend a la política de precio
+18ccf22 PA-002: Alinear API de Producto con política de precio
+a56d0af PA-001: Definir y encapsular política de precio

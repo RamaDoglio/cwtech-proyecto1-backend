@@ -1,3 +1,6 @@
+import { NotFoundException } from '@nestjs/common';
+import { Producto } from '../../domain/entities/producto.entity';
+import { Usuario } from 'src/modules/gestion-usuario/usuario/domain/entities/usuario.entity';
 import { ProductoPersistenceAdapter } from './producto.persistence-adapters';
 import { DatabaseConnectionException } from 'src/modules/common/exceptions/database-connection.exception';
 import { EntityNotFoundException } from 'src/modules/common/exceptions/entity-notFound-exceptions';
@@ -112,6 +115,20 @@ describe('ProductoPersistenceAdapter.findBy', () => {
     expect(query.andWhere.mock.calls[2][0]).toBe(
       'UPPER(superlinea.denominacion) LIKE UPPER(:superlinea)',
     );
+  });
+
+  it.each([
+    ['excluye los eliminados por defecto', undefined, true],
+    ['excluye los eliminados con incluirEliminados=false', false, true],
+    ['incluye los eliminados con incluirEliminados=true', true, false],
+  ])('%s', async (_caso, incluirEliminados, filtraEliminados) => {
+    const query = createQueryBuilderMock([[], 0]);
+    repository.createQueryBuilder.mockReturnValue(query);
+
+    await adapter.findBy('', '', '', '', false, '', 0, 0, 0, false, 0, 10, incluirEliminados);
+
+    const condiciones = query.andWhere.mock.calls.map(([condicion]) => condicion);
+    expect(condiciones.includes('producto.deletedAt IS NULL')).toBe(filtraEliminados);
   });
 
   it('devuelve data vacía y total cero cuando no hay coincidencias', async () => {
@@ -254,5 +271,71 @@ describe('ProductoPersistenceAdapter.persistencia y consultas', () => {
     await expect(adapter.findOne(99)).rejects.toBeInstanceOf(
       EntityNotFoundException,
     );
+  });
+});
+
+describe('ProductoPersistenceAdapter.findByRapido', () => {
+  const repository = { createQueryBuilder: jest.fn() };
+  let adapter: ProductoPersistenceAdapter;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    adapter = new ProductoPersistenceAdapter(repository as any, {} as any, {} as any);
+  });
+
+  it.each([
+    ['excluye los eliminados por defecto', undefined, true],
+    ['incluye los eliminados con incluirEliminados=true', true, false],
+  ])('%s', async (_caso, incluirEliminados, filtraEliminados) => {
+    const query = createQueryBuilderMock([[], 0]);
+    repository.createQueryBuilder.mockReturnValue(query);
+
+    await adapter.findByRapido('ACE', false, 0, 10, incluirEliminados);
+
+    const condiciones = query.andWhere.mock.calls.map(([condicion]) => condicion);
+    expect(condiciones.includes('producto.deletedAt IS NULL')).toBe(filtraEliminados);
+    expect(condiciones).toContain(
+      '(producto.codigoProveedor LIKE :codigo OR producto.codigoReferencia LIKE :codigo)',
+    );
+  });
+});
+
+describe('ProductoPersistenceAdapter.remove (soft delete)', () => {
+  const repository = { save: jest.fn() };
+  const usuario = { id: 4, denominacion: 'Jenifer Lopez' } as Usuario;
+  let adapter: ProductoPersistenceAdapter;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    repository.save.mockImplementation(async (producto) => producto);
+    adapter = new ProductoPersistenceAdapter(repository as any, {} as any, {} as any);
+  });
+
+  it('marca la baja con fecha y usuario y la persiste, sin borrar la fila', async () => {
+    const producto = Object.assign(new Producto(), { id: 7, deletedAt: null });
+
+    const resultado = await adapter.remove(producto, usuario);
+
+    expect(repository.save).toHaveBeenCalledTimes(1);
+    expect(repository.save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: 7,
+        deletedAt: expect.any(Date),
+        usuarioDeleted: usuario,
+      }),
+    );
+    expect(resultado.deletedAt).toBeInstanceOf(Date);
+  });
+
+  it('rechaza un producto ya eliminado sin volver a guardarlo', async () => {
+    const producto = Object.assign(new Producto(), {
+      id: 7,
+      deletedAt: new Date('2026-09-20T10:00:00Z'),
+    });
+
+    await expect(adapter.remove(producto, usuario)).rejects.toThrow(
+      NotFoundException,
+    );
+    expect(repository.save).not.toHaveBeenCalled();
   });
 });

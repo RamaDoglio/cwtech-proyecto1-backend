@@ -1,0 +1,1 @@
+1a076f3 fix(producto-operacion)!: retirar endpoints scaffold sin autenticación

@@ -46,6 +46,15 @@ export class SearchProductoPaginationWithDto {
   @IsBoolean()
   codProveedorExacto: boolean = false;
 
+  @ApiPropertyOptional({
+    description: 'Incluye los productos dados de baja (soft delete).',
+    default: false,
+  })
+  @ToBoolean(false)
+  @IsOptional()
+  @IsBoolean()
+  incluirEliminados: boolean = false;
+
   @IsInt()
   @Min(0, { message: 'skip debe ser un número entero positivo o 0' })
   @Type(() => Number)

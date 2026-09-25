@@ -1,0 +1,2 @@
+a07ce54 feat(producto): implementar MovimientoStock y ajuste de stock con trazabilidad
+cec6105 refactor(producto): muevo el cálculo de precio al servicio

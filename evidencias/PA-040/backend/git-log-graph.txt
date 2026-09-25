@@ -1,0 +1,242 @@
+*   6013725 (origin/develop) Unificacion testing pa 053 pa 055
+|\  
+| * e7aa57b docs(ia): registro la unificación de testing, PA-053 y PA-055
+| * c2b6b6f docs(ia): registro la deuda de zona horaria en las fechas de auditoría
+| *   a1ddf79 Merge branch 'PA-055-Comprobar-soft-delete-de-la-lista-de-productos' into unificacion-testing-PA-053-PA-055
+| |\  
+| | * 59af8e5 docs(ia): registro la decisión de PA-055
+| | * e7ab88b test(producto): cubro el soft delete y la búsqueda con eliminados
+| | * d7f6b3e feat(producto): permito incluir los productos eliminados en las búsquedas
+| | * 28fd2bd fix(producto): corrijo el soft delete de productos
+| | *   5f7f4d9 Merge branch 'testing' into PA-055-Comprobar-soft-delete-de-la-lista-de-productos
+| | |\  
+| | * \   c6ee9c6 Merge branch 'testing' into PA-055-Comprobar-soft-delete-de-la-lista-de-productos
+| | |\ \  
+| * | \ \   29fc2c9 Merge branch 'PA-053-Actualizar-datos-de-visualizacion-en-detalles-del-producto' into unificacion-testing-PA-053-PA-055
+| |\ \ \ \  
+| | * | | | e6d5b50 docs(ia): registro la decisión de PA-053
+| | * | | | 3e319d7 fix(auditoria): evito romper la auditoría de un producto sin creador
+| | * | | | c234f04 feat(producto): expongo el responsable en el historial de precios
+| | * | | |   5bfab68 Merge branch 'testing' into PA-053-Actualizar-datos-de-visualizacion-en-detalles-del-producto
+| | |\ \ \ \  
+| | | | |_|/  
+| | | |/| |   
+| | * | | |   336aed7 Merge branch 'testing' into PA-053-Actualizar-datos-de-visualizacion-en-detalles-del-producto
+| | |\ \ \ \  
+| | | |_|/ /  
+| | |/| | /   
+| | | | |/    
+| | | |/|     
+| * | | | 9f5a3ed Merge branch 'testing' into unificacion-testing-PA-053-PA-055
+|/| | | | 
+| | |_|/  
+| |/| |   
+| | | | * ad02103 (origin/testing) Merge remote-tracking branch 'origin/develop' into testing
+| | |_|/| 
+| |/| |/  
+| |_|/|   
+|/| | |   
+* | | |   3b31d83 (HEAD -> develop) Merge pull request #31 from RamaDoglio/PA-029-—-Implementar-búsqueda-por-Denominación/Línea/SuperLínea-
+|\ \ \ \  
+| |_|/ /  
+|/| | |   
+| | * | 37aa709 docs(ia): registro los tests arreglados y los falsos positivos encontrados
+| | * | dc5f82d test(producto): completo el precio del fixture de presentación
+| | |/  
+| | * 8ed6ab2 docs(ia): registro la integración de develop, main y PA-029 en testing
+| | * e2354ae test(producto): adapto el fixture de presentación a la relación línea/marca
+| | *   20dc37e Merge branch 'PA-029-—-Implementar-búsqueda-por-Denominación/Línea/SuperLínea-' into testing
+| | |\  
+| | |/  
+| |/|   
+| * | ce2aa10 PA-029 — Implementar búsqueda por Denominación/Línea/SuperLínea en backend (CR-004)
+| | *   96d5901 Merge branch 'main' into testing
+| | |\  
+| | | *   570974a (origin/main, origin/HEAD) Release 22/09/2026
+| | | |\  
+| | | * \   90ae5d1 Merge pull request #24 from RamaDoglio/test/politica-precio
+| | | |\ \  
+| | | * \ \   57d611a Release 21/09/2026
+| | | |\ \ \  
+| | | * \ \ \   b6d2b85 Merge pull request #15 from RamaDoglio/develop
+| | | |\ \ \ \  
+| | | * \ \ \ \   3df76ab Release 14/09/2026
+| | | |\ \ \ \ \  
+| | * | \ \ \ \ \   60ab24e Merge branch 'develop' into testing
+| | |\ \ \ \ \ \ \  
+| |_|/ / / / / / /  
+|/| | | | | | | |   
+* | | | | | | | |   0ca0f24 Merge pull request #30 from RamaDoglio/test/politica-precio
+|\ \ \ \ \ \ \ \ \  
+| * | | | | | | | | 303dfe8 (origin/test/politica-precio) test/ajuste de precio
+| | |_|_|_|_|_|/ /  
+| |/| | | | | | |   
+* | | | | | | | |   1f84fc4 Merge pull request #29 from RamaDoglio/PA-051-Implementar-bajoMinimo
+|\ \ \ \ \ \ \ \ \  
+| |_|/ / / / / / /  
+|/| | | | | | | |   
+| * | | | | | | | 4c508f4 (origin/PA-051-Implementar-bajoMinimo) feat/PA-051-implementacion-bajoMinimo
+|/ / / / / / / /  
+* | | | | | | |   bf75fff Merge pull request #27 from RamaDoglio/PA-031
+|\ \ \ \ \ \ \ \  
+| |_|_|_|_|_|_|/  
+|/| | | | | | |   
+| * | | | | | | e6292d7 docs: completar verificación de la corrección del envase (CR-005)
+| * | | | | | | a009cf8 test(producto): cubrir generarDenominacionAutomatica a nivel HTTP (CR-005)
+| * | | | | | | 4c2c8d6 fix(producto): incluir el envase en la denominación automática (CR-005)
+| * | | | | | | 248ab1e feat(producto): denominación automática al alta (CR-005)
+|/ / / / / / /  
+* | | | | | | 9a69eba Merge pull request #23 from RamaDoglio/testing
+|\| | | | | | 
+* | | | | | |   01948a6 Merge pull request #25 from RamaDoglio/PA-024-Implementar-Presentacion-en-backend-CR-002
+|\ \ \ \ \ \ \  
+| |_|_|_|_|_|/  
+|/| | | | | |   
+| * | | | | | 31b151a hotfix(producto): elimino doble importación DataSource
+| * | | | | |   991cbca Merge branch 'develop' into PA-024-Implementar-Presentacion-en-backend-CR-002
+| |\ \ \ \ \ \  
+| |/ / / / / /  
+|/| | | | | |   
+| * | | | | | 684c44a feat: Presentacion VO y envase como catalogo
+| | | * | | |   d93c4ff PA-020 — Corregir filtro exacto de productos
+| | | |\ \ \ \  
+| | | | * | | | 14a599b docs(ia): agrego reglas y registro de decisiones asistidas por IA
+| | | | * | | | 1cfc2d2 test(producto): cubro la lectura de booleanos en las búsquedas
+| | | | * | | | 30da0fa fix(producto): busco solo por código en la búsqueda rápida y acumulo filtros
+| | | | * | | | 6b40109 fix(producto): corrijo la lectura de booleanos en las búsquedas
+| | | |/ / / /  
+| | | * | | | ea1090b feat(seed): agrego seed de productos de ejemplo
+| | | * | | | b7172f7 fix(seed): asigno superlínea por defecto en el seed de líneas
+| | | * | | | 514e873 fix(seed): corrijo el chequeo de existencia de alícuota IVA
+| | | * | | | 764bce4 chore: actualizo yarn.lock
+| | | * | | | 4d3141e chore: ignoro package-lock.json
+| | | * | | | 24931c4 fix(producto): reemplazo columnas *Id sueltas por el id de la relación
+| | |/ / / /  
+| | * | | | b1502ec test/ajuste de precio - monto fijo
+| | * | | | 473156b test/ajuste de precio - porcentaje
+| |/ / / /  
+|/| | | |   
+* | | | |   77475d0 Merge pull request #21 from RamaDoglio/feature/PA-027-Implementar-SuperLínea-en-backend
+|\ \ \ \ \  
+| * | | | | e76bf3a fix(superlinea): corrijo validación y baja atómica
+| * | | | | 1cba32e feat(superlinea): implementar SuperLínea y relación obligatoria con Línea
+* | | | | |   bce9653 Hotfix: registrar historial de precios en la edición directa y ajuste masivo.
+|\ \ \ \ \ \  
+| |_|/ / / /  
+|/| | | | |   
+| * | | | | 27c82e9 fix(producto): registrar historial de precios en la edición y el ajuste masivo
+|/ / / / /  
+* | | | |   2ffe47d PA- 016 implementar actualizacion masiva de precios back
+|\ \ \ \ \  
+| * | | | | 45ab4b4 fix:guadar usuario que hace el cambio de precio no se mostraba en la bd
+* | | | | |   55c4279 Merge pull request #18 from RamaDoglio/PA-018-Implementar-historial-precios
+|\ \ \ \ \ \  
+| |_|/ / / /  
+|/| | | | |   
+| * | | | | e0e172f PA-018: Implementar cambio de precio con trazabilidad e historial
+|/ / / / /  
+* | | | | 6538073 PA-16: Implementar actualizacion masiva de precios
+|\| | | | 
+| * | | |   d5f1451 Resolver conflictos con develop
+| |\ \ \ \  
+| |/ / / /  
+|/| | | |   
+* | | | |   0c11cee Merge pull request #16 from RamaDoglio/feature/PA-012—Alinear-validaciones-y-errores-en-backend
+|\ \ \ \ \  
+| |_|_|_|/  
+|/| | | |   
+| * | | | eda0b5d feat(pa-012): alinear validaciones y normalizar errores HTTP
+|/ / / /  
+* | | |   b149d05 Hotfix: Crear movimiento_stock en bases existentes
+|\ \ \ \  
+| |_|_|/  
+|/| | |   
+| * | | ed62724 fix(migracion): creo movimiento de stock en bases existentes
+|/ / /  
+* | |   3c224f0 PA-006 — Exponer endpoint de ajuste de stock
+|\ \ \  
+| * | | 6f2d11d fix(stock): evito desvincular movimientos al actualizar stock
+| * | | 381f538 fix(stock): evito inicializar relaciones de TypeORM
+| * | | 5f9ca44 feat(stock): expongo el endpoint de ajuste manual
+* | | | 9475614 Merge pull request #11 from RamaDoglio/feature/pa-005-persistir-movimiento-stock
+|\| | | 
+| * | | 3d7799e feat(stock): persisto movimientos de stock de forma atomica
+* | | |   285621b Merge pull request #10 from RamaDoglio/PA-022-revisar-y-retirar-ProductoOperacion-scaffold
+|\ \ \ \  
+| * | | | 1a076f3 fix(producto-operacion)!: retirar endpoints scaffold sin autenticación
+* | | | |   af2c65b Merge pull request #7 from RamaDoglio/bugfix/PA-046-Arreglo-Test-Ignorados
+|\ \ \ \ \  
+| * | | | | 130b215 test(controllers): corregir tests ignorados y eliminar exclusiones temporales
+| |/ / / /  
+* | | | |   cb59265 PA-011 — Definir matriz común de validaciones
+|\ \ \ \ \  
+| * | | | | 1b123c9 Merge branch 'develop' into pa-011-alinear-validaciones-backend
+| |\| | | | 
+| * | | | | 500fcf4 fix(validaciones): unificar regex de denominacion en Producto
+| * | | | | c78268b docs(producto): explicitar que stock es siempre entero (PA-011)
+| * | | | | 6307453 fix(validaciones): acotar CUIT de Cliente/Proveedor a 11 caracteres
+| * | | | | 6812d11 fix(validaciones): obligatoriedad condicional de stockMinimo/cantidadPorPack
+| * | | | | dcc902d fix(validaciones): agregar rango 0-999 a porcentaje de Producto
+| * | | | | 9f59dfc fix(validaciones): agregar minimo y regla precio>=costo en Producto
+| * | | | | 1fe267b fix(validaciones): exigir al menos un tipo de proveedor en el backend
+| * | | | | e165e55 fix(validaciones): validar domicilio anidado en Cliente/Proveedor
+| | | | * | 678d833 feat:PA-016-Actualización masiva de precios
+| | | | * | 16e082f cambios en la tabla
+| |_|_|/ /  
+|/| | | |   
+* | | | |   8db9326 Merge pull request #8 from RamaDoglio/pa-015-filtro-proveedor
+|\ \ \ \ \  
+| |_|/ / /  
+|/| | | |   
+| * | | | 60e2454 feat:pa-015-filtro-proveedor
+| | |_|/  
+| |/| |   
+* | | | abc5a1c Merge tag 'vProblemas-con-JsonWebToken' into develop
+|\| | | 
+| * | |   ca846d4 (tag: vProblemas-con-JsonWebToken, main) Merge branch 'hotfix/Problemas-con-JsonWebToken'
+| |\ \ \  
+| | * | | 8296534 fix(auth): castear expiresIn a StringValue para compatibilidad con @nestjs/jwt v11
+| |/ / /  
+* | | / d4427f0 Merge tag 'vMerge-a-main-12-09' into develop
+|\| | | 
+| |_|/  
+|/| |   
+| * |   f0dbf6d (tag: vMerge-a-main-12-09) Merge branch 'hotfix/Merge-a-main-12-09'
+| |\ \  
+| | * | b75bc06 fix(docker): fijar Yarn 1.22.22 con Corepack para compatibilidad con yarn.lock v1
+| |/ /  
+| * |   66f7ee9 Release: actualizar main desde develop (12/09/2026)
+| |\ \  
+* | \ \   845bc90 chore: ignoro mis carpetas de opencode
+|\ \ \ \  
+| | |/ /  
+| |/| |   
+| * | | d53aebf Merge branch 'main' into develop
+| |\| | 
+| | * | a64269a fix(gitIgnore)
+| | |/  
+* | / 5d0b0df chore: ignoro mis carpetas de opencode
+|/ /  
+* |   97d81dc PA-003: Adaptar frontend a la política de precio
+|\ \  
+| * | 38011dd test(producto): cubro recálculo de precio
+| * | b36548b fix(producto): persisto precio y margen derivados
+|/ /  
+* |   18ccf22 PA-002: Alinear API de Producto con política de precio
+|\ \  
+| * | a79376d feat(producto): alineo la API con la política de precio
+* | | a07ce54 feat(producto): implementar MovimientoStock y ajuste de stock con trazabilidad
+|/ /  
+* |   a56d0af PA-001: Definir y encapsular política de precio
+|\ \  
+| * | cec6105 refactor(producto): muevo el cálculo de precio al servicio
+| * | 9ef68b8 feat(producto): implemento política de precio derivado
+|/ /  
+* / 3aa18e8 test(controllers): excluir temporalmente pruebas que fallan por conflicto ESM/CJS en @nestjs/mapped-types
+|/  
+* 243df9d docs: agrego URLs de producción al README
+* 9428d1f chore: elimino node_modules del repositorio
+* d1a0f5a chore: muevo backend a la raíz
+* fb0eb63 fix: run DB migrations on container start
+* d9851a2 Fix: El error es claro: mysql2 v3 no acepta ssl: true (booleano). Aiven exige SSL
+* e2b0130 incial

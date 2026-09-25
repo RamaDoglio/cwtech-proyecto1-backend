@@ -24,7 +24,7 @@ import { CambioPreciosMasivoHistorial } from '../../domain/entities/cambio-preci
 import { CambioPreciosMasivoDto } from '../../dto/cambio-precios-masivo.dto';
 import { AlcanceAjustePrecio } from '../../enums/alcance-ajuste-precio.enum';
 import { TipoAumento } from '../../../../common/enums/tipo-aumento.emun';
-import { NotFoundException } from '@nestjs/common';
+import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import { EnvasePresentacion } from '../../../envase-presentacion/domain/entities/envase-presentacion.entity';
 
 // ==================== MOCKS ====================
@@ -169,6 +169,7 @@ describe('ProductoService', () => {
       false,
       0,
       10,
+      false,
     );
   });
 
@@ -673,6 +674,55 @@ describe('ProductoService', () => {
     });
   });
 
+  describe('remove (soft delete)', () => {
+    const usuario = { id: 4, denominacion: 'Jenifer Lopez' };
+    const productoActivo = () =>
+      Object.assign(new Producto(), {
+        id: 7,
+        denominacion: 'MARGARINA 500G',
+        sistema: 0,
+        deletedAt: null,
+      });
+
+    it('delega la baja en el repositorio con el usuario, sin marcarla antes', async () => {
+      const producto = productoActivo();
+      mockRepository.findOne.mockResolvedValue(producto);
+      mockUsuarioService.findOne.mockResolvedValue(usuario);
+      let deletedAtAlDelegar: Date | null | undefined;
+      mockRepository.remove.mockImplementation(async (entidad: Producto) => {
+        deletedAtAlDelegar = entidad.deletedAt;
+        return entidad;
+      });
+
+      const respuesta = await service.remove(7, 4);
+
+      expect(mockRepository.remove).toHaveBeenCalledWith(producto, usuario);
+      // El adapter rechaza con 404 todo producto que ya trae deletedAt.
+      expect(deletedAtAlDelegar).toBeNull();
+      expect(respuesta).toEqual(
+        expect.objectContaining({ mensaje: expect.stringContaining('MARGARINA 500G') }),
+      );
+    });
+
+    it('lanza NotFoundException si el usuario no existe, sin dar de baja', async () => {
+      mockRepository.findOne.mockResolvedValue(productoActivo());
+      mockUsuarioService.findOne.mockResolvedValue(null);
+
+      await expect(service.remove(7, 999)).rejects.toThrow(NotFoundException);
+      expect(mockRepository.remove).not.toHaveBeenCalled();
+    });
+
+    it('no deja dar de baja un producto del sistema', async () => {
+      mockRepository.findOne.mockResolvedValue(
+        Object.assign(productoActivo(), { sistema: 1 }),
+      );
+      mockUsuarioService.findOne.mockResolvedValue(usuario);
+
+      await expect(service.remove(7, 4)).rejects.toThrow(ForbiddenException);
+      expect(mockRepository.remove).not.toHaveBeenCalled();
+    });
+  });
+
   describe('findHistorialPrecios', () => {
     it('devuelve el historial paginado ordenado por fecha descendente', async () => {
       mockRepository.findOne.mockResolvedValue({ id: 1 });
@@ -685,7 +735,8 @@ describe('ProductoService', () => {
             precioNuevo: 150,
             motivo: 'Aumento',
             fecha: new Date('2026-01-02'),
-            usuarioId: 1,
+            usuarioId: 4,
+            usuario: { id: 4, denominacion: 'Jenifer Lopez' },
           },
         ],
         1,
@@ -699,15 +750,47 @@ describe('ProductoService', () => {
       );
       expect(findAndCount).toHaveBeenCalledWith({
         where: { productoId: 1 },
+        relations: { usuario: true },
         order: { fecha: 'DESC' },
         skip: 0,
         take: 10,
       });
       expect(resultado.total).toBe(1);
       expect(resultado.data).toHaveLength(1);
-      expect(resultado.data[0]).toEqual(
-        expect.objectContaining({ id: 2, precioAnterior: 100, precioNuevo: 150 }),
-      );
+      expect(resultado.data[0]).toEqual({
+        id: 2,
+        productoId: 1,
+        precioAnterior: 100,
+        precioNuevo: 150,
+        motivo: 'Aumento',
+        fecha: new Date('2026-01-02'),
+        usuarioId: 4,
+        usuarioDenominacion: 'Jenifer Lopez',
+      });
+    });
+
+    it('devuelve el responsable como null si el cambio no tiene usuario', async () => {
+      mockRepository.findOne.mockResolvedValue({ id: 1 });
+      const findAndCount = jest.fn().mockResolvedValue([
+        [
+          {
+            id: 3,
+            productoId: 1,
+            precioAnterior: 150,
+            precioNuevo: 160,
+            motivo: 'Ajuste masivo',
+            fecha: new Date('2026-01-03'),
+            usuarioId: null,
+            usuario: null,
+          },
+        ],
+        1,
+      ]);
+      mockDataSource.getRepository.mockReturnValue({ findAndCount });
+
+      const resultado = await service.findHistorialPrecios(1, 0, 10);
+
+      expect(resultado.data[0].usuarioDenominacion).toBeNull();
     });
 
     it('lanza NotFoundException si el producto no existe', async () => {

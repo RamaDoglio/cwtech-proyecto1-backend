@@ -295,6 +295,7 @@ describe('ProductoController HTTP', () => {
         esperado,
         0,
         10,
+        false,
       );
     });
 
@@ -309,6 +310,7 @@ describe('ProductoController HTTP', () => {
         false,
         0,
         10,
+        false,
       );
     });
   });
@@ -342,9 +344,41 @@ describe('ProductoController HTTP', () => {
           esperado,
           0,
           10,
+          false,
         );
       },
     );
+
+    it.each([
+      ['true', true],
+      ['false', false],
+    ])('interpreta incluirEliminados=%s como %s', async (query, esperado) => {
+      await request(app.getHttpServer())
+        .get('/producto/search-by')
+        .query({ incluirEliminados: query })
+        .expect(200);
+
+      expect(productoService.findBy).toHaveBeenCalledWith(
+        '', '', '', '', false, '', undefined, undefined, undefined, false, 0, 10,
+        esperado,
+      );
+    });
+  });
+
+  describe('búsqueda rápida con eliminados', () => {
+    it.each([
+      ['true', true],
+      ['false', false],
+    ])('interpreta incluirEliminados=%s como %s', async (query, esperado) => {
+      await request(app.getHttpServer())
+        .get('/producto/search-by-rapido')
+        .query({ codigo: 'ACE', incluirEliminados: query })
+        .expect(200);
+
+      expect(productoService.findByRapido).toHaveBeenCalledWith(
+        'ACE', false, 0, 10, esperado,
+      );
+    });
   });
 
   it('aplica valores por defecto de paginación en el historial de precios', async () => {
