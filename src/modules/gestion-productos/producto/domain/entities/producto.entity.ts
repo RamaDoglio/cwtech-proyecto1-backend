@@ -54,9 +54,6 @@ export class Producto {
   @Index()
   proveedor: Proveedor;
 
-  @Column({ type: 'int', nullable: true })
-  proveedorId?: number;
-
   /*
   Nota: No usar el enum alciculta iva en @Column
         sino no anda el importar precios 
@@ -147,16 +144,10 @@ export class Producto {
   @JoinColumn({ name: 'linea_id' })
   linea: Linea;
 
-  @Column({ type: 'int', nullable: true })
-  lineaId?: number;
-
   // ==========  MARCA ==========
   @ManyToOne(() => Marca, (marca) => marca.productos)
   @JoinColumn({ name: 'marca_id' })
   marca: Marca;
-
-  @Column({ type: 'int', nullable: true })
-  marcaId?: number;
 
   @Column({ default: false })
   utilizaPack: boolean;
@@ -170,8 +161,8 @@ export class Producto {
   @Column({ type: 'text', nullable: true })
   ubicacion?: string;
 
-  @ManyToOne(() => Producto, (producto) => producto.productosOperacion)
-  productosOperacion: ProductoOperacion;
+  @OneToMany(() => ProductoOperacion, (po) => po.producto)
+  productosOperacion: ProductoOperacion[];
 
   @Column({ type: 'int', default: 0 })
   sistema: number;
@@ -252,6 +243,20 @@ export class Producto {
   }
 
   // ============================================================
+  // Estado de alerta por stock bajo — regla de negocio del dominio
+  // Si stockActual <= stockMinimo y la regla está habilitada, el producto
+  // entra en alerta. La reacción ante la alerta (notificar, listar, etc.)
+  // no corresponde a esta entidad; queda en la capa de aplicación.
+  // ============================================================
+  estaBajoMinimo(): boolean {
+    if (!this.utilizaStockMinimo) {
+      return false;
+    }
+
+    return this.stock <= this.stockMinimo;
+  }
+
+  // ============================================================
   // Cambio de precio — invariante del agregado Producto
   // ============================================================
   cambiarPrecio(
@@ -324,5 +329,25 @@ export class Producto {
       this.presentacionDimension != null ||
       this.presentacionMagnitudBase != null
     );
+  }
+
+  // ============================================================
+  // Denominación automática — sólo al alta (CR-005). "Marca + Línea +
+  // Presentación", con el envase incluido (ej. "COCA-COLA GASEOSAS BOTELLA
+  // 500 ml"): sin el envase, "Coca-Cola Gaseosas 500 ml" en botella y en
+  // lata generarían el mismo string y, como la denominación es única en
+  // todo el sistema, la segunda alta fallaría por una colisión que no es
+  // un duplicado real. No se usa en update: una edición posterior de
+  // marca, línea o presentación no regenera la denominación existente.
+  // ============================================================
+  static generarDenominacionAutomatica(
+    marcaDenominacion: string,
+    lineaDenominacion: string,
+    presentacionTexto: string,
+  ): string {
+    return [marcaDenominacion, lineaDenominacion, presentacionTexto]
+      .map((parte) => parte.trim())
+      .filter((parte) => parte.length > 0)
+      .join(' ');
   }
 }

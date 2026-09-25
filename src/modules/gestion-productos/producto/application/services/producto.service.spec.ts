@@ -24,7 +24,7 @@ import { CambioPreciosMasivoHistorial } from '../../domain/entities/cambio-preci
 import { CambioPreciosMasivoDto } from '../../dto/cambio-precios-masivo.dto';
 import { AlcanceAjustePrecio } from '../../enums/alcance-ajuste-precio.enum';
 import { TipoAumento } from '../../../../common/enums/tipo-aumento.emun';
-import { NotFoundException } from '@nestjs/common';
+import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import { EnvasePresentacion } from '../../../envase-presentacion/domain/entities/envase-presentacion.entity';
 
 // ==================== MOCKS ====================
@@ -135,6 +135,43 @@ describe('ProductoService', () => {
     expect(service).toBeDefined();
   });
 
+  it('combina filtros parciales y conserva una respuesta vacía cuando no hay coincidencias', async () => {
+    mockRepository.findBy.mockResolvedValue({ data: [], total: 0 });
+
+    await expect(
+      service.findBy(
+        'inexistente',
+        'lacteos',
+        'bebidas',
+        '',
+        false,
+        '',
+        0,
+        0,
+        0,
+        false,
+        0,
+        10,
+      ),
+    ).resolves.toEqual({ data: [], total: 0 });
+
+    expect(mockRepository.findBy).toHaveBeenCalledWith(
+      'inexistente',
+      'lacteos',
+      'bebidas',
+      '',
+      false,
+      '',
+      0,
+      0,
+      0,
+      false,
+      0,
+      10,
+      false,
+    );
+  });
+
   it('revierte el ajuste completo si falla la persistencia del movimiento', async () => {
     const producto = Object.assign(new Producto(), {
       id: 1,
@@ -226,8 +263,8 @@ describe('ProductoService', () => {
           costo: 100,
           porcentaje: 15,
           precio: 115,
-          lineaId: 1,
-          marcaId: 1,
+          linea: { id: 1 },
+          marca: { id: 1 },
           alicuotaIva: 21,
         }),
       );
@@ -558,6 +595,55 @@ describe('ProductoService', () => {
     });
   });
 
+  describe('remove (soft delete)', () => {
+    const usuario = { id: 4, denominacion: 'Jenifer Lopez' };
+    const productoActivo = () =>
+      Object.assign(new Producto(), {
+        id: 7,
+        denominacion: 'MARGARINA 500G',
+        sistema: 0,
+        deletedAt: null,
+      });
+
+    it('delega la baja en el repositorio con el usuario, sin marcarla antes', async () => {
+      const producto = productoActivo();
+      mockRepository.findOne.mockResolvedValue(producto);
+      mockUsuarioService.findOne.mockResolvedValue(usuario);
+      let deletedAtAlDelegar: Date | null | undefined;
+      mockRepository.remove.mockImplementation(async (entidad: Producto) => {
+        deletedAtAlDelegar = entidad.deletedAt;
+        return entidad;
+      });
+
+      const respuesta = await service.remove(7, 4);
+
+      expect(mockRepository.remove).toHaveBeenCalledWith(producto, usuario);
+      // El adapter rechaza con 404 todo producto que ya trae deletedAt.
+      expect(deletedAtAlDelegar).toBeNull();
+      expect(respuesta).toEqual(
+        expect.objectContaining({ mensaje: expect.stringContaining('MARGARINA 500G') }),
+      );
+    });
+
+    it('lanza NotFoundException si el usuario no existe, sin dar de baja', async () => {
+      mockRepository.findOne.mockResolvedValue(productoActivo());
+      mockUsuarioService.findOne.mockResolvedValue(null);
+
+      await expect(service.remove(7, 999)).rejects.toThrow(NotFoundException);
+      expect(mockRepository.remove).not.toHaveBeenCalled();
+    });
+
+    it('no deja dar de baja un producto del sistema', async () => {
+      mockRepository.findOne.mockResolvedValue(
+        Object.assign(productoActivo(), { sistema: 1 }),
+      );
+      mockUsuarioService.findOne.mockResolvedValue(usuario);
+
+      await expect(service.remove(7, 4)).rejects.toThrow(ForbiddenException);
+      expect(mockRepository.remove).not.toHaveBeenCalled();
+    });
+  });
+
   describe('findHistorialPrecios', () => {
     it('devuelve el historial paginado ordenado por fecha descendente', async () => {
       mockRepository.findOne.mockResolvedValue({ id: 1 });
@@ -570,7 +656,8 @@ describe('ProductoService', () => {
             precioNuevo: 150,
             motivo: 'Aumento',
             fecha: new Date('2026-01-02'),
-            usuarioId: 1,
+            usuarioId: 4,
+            usuario: { id: 4, denominacion: 'Jenifer Lopez' },
           },
         ],
         1,
@@ -584,15 +671,47 @@ describe('ProductoService', () => {
       );
       expect(findAndCount).toHaveBeenCalledWith({
         where: { productoId: 1 },
+        relations: { usuario: true },
         order: { fecha: 'DESC' },
         skip: 0,
         take: 10,
       });
       expect(resultado.total).toBe(1);
       expect(resultado.data).toHaveLength(1);
-      expect(resultado.data[0]).toEqual(
-        expect.objectContaining({ id: 2, precioAnterior: 100, precioNuevo: 150 }),
-      );
+      expect(resultado.data[0]).toEqual({
+        id: 2,
+        productoId: 1,
+        precioAnterior: 100,
+        precioNuevo: 150,
+        motivo: 'Aumento',
+        fecha: new Date('2026-01-02'),
+        usuarioId: 4,
+        usuarioDenominacion: 'Jenifer Lopez',
+      });
+    });
+
+    it('devuelve el responsable como null si el cambio no tiene usuario', async () => {
+      mockRepository.findOne.mockResolvedValue({ id: 1 });
+      const findAndCount = jest.fn().mockResolvedValue([
+        [
+          {
+            id: 3,
+            productoId: 1,
+            precioAnterior: 150,
+            precioNuevo: 160,
+            motivo: 'Ajuste masivo',
+            fecha: new Date('2026-01-03'),
+            usuarioId: null,
+            usuario: null,
+          },
+        ],
+        1,
+      ]);
+      mockDataSource.getRepository.mockReturnValue({ findAndCount });
+
+      const resultado = await service.findHistorialPrecios(1, 0, 10);
+
+      expect(resultado.data[0].usuarioDenominacion).toBeNull();
     });
 
     it('lanza NotFoundException si el producto no existe', async () => {
@@ -632,8 +751,9 @@ describe('ProductoService', () => {
         denominacion: 'PRODUCTO',
         costo: 100,
         porcentaje: 15,
-        lineaId: 1,
-        marcaId: 1,
+        precio: 115,
+        linea: { id: 1 },
+        marca: { id: 1 },
         alicuotaIva: 21,
         envasePresentacionId: null,
         presentacionDimension: null,
@@ -839,6 +959,116 @@ describe('ProductoService', () => {
           envasePresentacionId: 1,
           presentacionMagnitudBase: 500,
         });
+      });
+    });
+
+    describe('denominación automática (CR-005)', () => {
+      const marcaCocaCola = { id: 1, denominacion: 'COCA-COLA' };
+      const lineaGaseosas = { id: 1, denominacion: 'GASEOSAS' };
+
+      beforeEach(() => {
+        mockRelatedEntitiesValidator.validarYObtenerEntidadesRelacionadas.mockResolvedValue(
+          { marca: marcaCocaCola, linea: lineaGaseosas },
+        );
+      });
+
+      it('genera "Marca Línea Presentación" (con envase) cuando generarDenominacionAutomatica es true y no se envía denominación', async () => {
+        const { denominacion, ...altaSinDenominacion } = altaBase;
+
+        await service.create({
+          ...altaSinDenominacion,
+          generarDenominacionAutomatica: true,
+          presentacion: { envaseId: 1, cantidad: 500, unidad: 'ml' },
+        } as CreateProductoDto);
+
+        expect(
+          mockUniquenessValidator.validarDenominacionUnica,
+        ).toHaveBeenCalledWith('COCA-COLA GASEOSAS BOTELLA 500 ml');
+        expect(mockRepository.save).toHaveBeenCalledWith(
+          expect.objectContaining({
+            denominacion: 'COCA-COLA GASEOSAS BOTELLA 500 ml',
+          }),
+        );
+      });
+
+      it('ignora cualquier denominación recibida cuando generarDenominacionAutomatica es true', async () => {
+        await service.create({
+          ...altaBase,
+          denominacion: 'ESTO SE IGNORA',
+          generarDenominacionAutomatica: true,
+          presentacion: { envaseId: 1, cantidad: 500, unidad: 'ml' },
+        } as CreateProductoDto);
+
+        expect(mockRepository.save).toHaveBeenCalledWith(
+          expect.objectContaining({
+            denominacion: 'COCA-COLA GASEOSAS BOTELLA 500 ml',
+          }),
+        );
+      });
+
+      it('el envase distingue productos con igual Marca+Línea+contenido (botella vs. lata no colisionan)', async () => {
+        const { denominacion, ...altaSinDenominacion } = altaBase;
+
+        await service.create({
+          ...altaSinDenominacion,
+          generarDenominacionAutomatica: true,
+          presentacion: { envaseId: 1, cantidad: 500, unidad: 'ml' },
+        } as CreateProductoDto);
+        await service.create({
+          ...altaSinDenominacion,
+          generarDenominacionAutomatica: true,
+          presentacion: { envaseId: 2, cantidad: 500, unidad: 'ml' },
+        } as CreateProductoDto);
+
+        expect(mockRepository.save).toHaveBeenNthCalledWith(
+          1,
+          expect.objectContaining({
+            denominacion: 'COCA-COLA GASEOSAS BOTELLA 500 ml',
+          }),
+        );
+        expect(mockRepository.save).toHaveBeenNthCalledWith(
+          2,
+          expect.objectContaining({
+            denominacion: 'COCA-COLA GASEOSAS BOLSA 500 ml',
+          }),
+        );
+      });
+
+      it('con generarDenominacionAutomatica en false u omitido, conserva tal cual la denominación manual enviada', async () => {
+        await service.create({
+          ...altaBase,
+          denominacion: 'mi denominación manual',
+          presentacion: { envaseId: 1, cantidad: 500, unidad: 'ml' },
+        } as CreateProductoDto);
+
+        expect(
+          mockUniquenessValidator.validarDenominacionUnica,
+        ).toHaveBeenCalledWith('mi denominación manual');
+        expect(mockRepository.save).toHaveBeenCalledWith(
+          expect.objectContaining({ denominacion: 'mi denominación manual' }),
+        );
+      });
+
+      it('un cambio posterior de marca, línea o presentación por PUT no regenera la denominación generada al alta', async () => {
+        const producto = productoGuardado({
+          denominacion: 'COCA-COLA GASEOSAS BOTELLA 500 ml',
+          ...botella500,
+        });
+        mockRepository.findOne.mockResolvedValue(producto);
+
+        await service.update(1, {
+          usuarioUpdatedId: 1,
+          marcaId: 1,
+          lineaId: 1,
+          presentacion: { envaseId: 2, cantidad: 1, unidad: 'kg' },
+        } as UpdateProductoDto);
+
+        expect(mockRepository.save).toHaveBeenCalledWith(
+          expect.objectContaining({
+            denominacion: 'COCA-COLA GASEOSAS BOTELLA 500 ml',
+            envasePresentacionId: 2,
+          }),
+        );
       });
     });
   });

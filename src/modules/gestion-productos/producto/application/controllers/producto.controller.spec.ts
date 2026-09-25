@@ -46,4 +46,41 @@ describe('ProductoController', () => {
   it('should be defined', () => {
     expect(controller).toBeDefined();
   });
+
+  it('propaga los filtros parciales de denominación, línea y SuperLínea', async () => {
+    mockProductoService.findBy.mockResolvedValue({ data: [], total: 0 });
+
+    await controller.search({
+      denominacion: 'leche',
+      linea: 'lacteos',
+      superlinea: 'bebidas',
+      codigoProveedor: '',
+      codProveedorExacto: false,
+      codigoReferencia: '',
+      codReferenciaExacto: false,
+      marcaId: 0,
+      lineaId: 0,
+      proveedorId: 0,
+      conStock: false,
+      skip: 0,
+      take: 10,
+      incluirEliminados: false,
+    });
+
+    expect(mockProductoService.findBy).toHaveBeenCalledWith(
+      'leche',
+      'lacteos',
+      'bebidas',
+      '',
+      false,
+      '',
+      0,
+      0,
+      0,
+      false,
+      0,
+      10,
+      false,
+    );
+  });
 });

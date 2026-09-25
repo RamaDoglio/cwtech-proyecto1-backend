@@ -30,10 +30,17 @@ export class ProductoMapper {
   ): Producto {
     const producto = new Producto();
 
-    const { margen, presentacion: _presentacion, ...camposProducto } = dto;
+    const {
+      margen,
+      presentacion: _presentacion,
+      generarDenominacionAutomatica: _generarDenominacionAutomatica,
+      ...camposProducto
+    } = dto;
 
     // margen es parte del contrato HTTP, pero se persiste en la columna historica porcentaje.
     // presentacion la valida y la asigna el servicio con producto.asignarPresentacion().
+    // generarDenominacionAutomatica ya se resolvió en el servicio (CR-005):
+    // dto.denominacion ya trae el valor final, manual o generado.
     Object.entries(camposProducto).forEach(([key, value]) => {
       if (value !== undefined) {
         (producto as any)[key] = value;
@@ -59,7 +66,14 @@ export class ProductoMapper {
     usuario: Usuario,
   ): void {
     // presentacion la valida y la asigna el servicio con producto.asignarPresentacion().
-    const { margen, presentacion: _presentacion, ...camposProducto } = dto;
+    // generarDenominacionAutomatica (CR-005) no aplica a la actualización: se
+    // ignora si llega, la denominación existente nunca se regenera acá.
+    const {
+      margen,
+      presentacion: _presentacion,
+      generarDenominacionAutomatica: _generarDenominacionAutomatica,
+      ...camposProducto
+    } = dto;
 
     Object.entries(camposProducto).forEach(([key, value]) => {
       if (value !== undefined) {
@@ -105,6 +119,7 @@ export class ProductoMapper {
       sistema: entity.sistema,
       codigoReferencia: entity.codigoReferencia ?? '',
       presentacion: ProductoMapper.toPresentacionDto(entity),
+      eliminado: entity.deletedAt != null,
     };
   }
 

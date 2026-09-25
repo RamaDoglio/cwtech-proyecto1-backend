@@ -11,7 +11,7 @@ import { ProductoConPrecioResuelto } from './producto-con-precio-resuelto.interf
 export interface IProductoRepository {
   // ===== Persistencia =====
   save(producto: Producto): Promise<Producto>;
-  remove(producto: Producto): Promise<Producto>;
+  remove(producto: Producto, usuario: Usuario): Promise<Producto>;
 
   // ===== Consultas individuales =====
   findOne(id: number): Promise<Producto | null>;
@@ -24,6 +24,8 @@ export interface IProductoRepository {
   // ===== Consultas paginadas =====
   findBy(
     denominacion: string,
+    linea: string,
+    superlinea: string,
     codigoProveedor: string,
     codProveedorExacto: boolean,
     codigoReferencia: string,
@@ -33,6 +35,7 @@ export interface IProductoRepository {
     conStock: boolean,
     skip: number,
     take: number,
+    incluirEliminados?: boolean,
   ): Promise<{ data: Producto[]; total: number }>;
 
   findByRapido(
@@ -40,6 +43,7 @@ export interface IProductoRepository {
     exacto: boolean,
     skip: number,
     take: number,
+    incluirEliminados?: boolean,
   ): Promise<{ data: Producto[]; total: number }>;
 
   findByDenominacionCodigoProveedorFiltered(

@@ -21,4 +21,11 @@ export class HistorialPrecioDto {
 
   @ApiProperty({ required: false })
   usuarioId?: number;
+
+  @ApiProperty({
+    required: false,
+    nullable: true,
+    description: 'Nombre del usuario responsable del cambio.',
+  })
+  usuarioDenominacion?: string | null;
 }

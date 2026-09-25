@@ -190,6 +190,40 @@ describe('Producto.cambiarPrecio', () => {
   });
 });
 
+describe('Producto.estaBajoMinimo', () => {
+  let producto: Producto;
+
+  beforeEach(() => {
+    producto = new Producto();
+    producto.id = 1;
+    producto.stock = 5;
+    producto.stockMinimo = 10;
+    producto.utilizaStockMinimo = true;
+  });
+
+  it('debe devolver true cuando el stock está por debajo del mínimo', () => {
+    expect(producto.estaBajoMinimo()).toBe(true);
+  });
+
+  it('debe devolver true cuando el stock es igual al mínimo', () => {
+    producto.stock = 10;
+
+    expect(producto.estaBajoMinimo()).toBe(true);
+  });
+
+  it('debe devolver false cuando el stock supera el mínimo', () => {
+    producto.stock = 15;
+
+    expect(producto.estaBajoMinimo()).toBe(false);
+  });
+
+  it('debe devolver false cuando la regla está deshabilitada', () => {
+    producto.utilizaStockMinimo = false;
+
+    expect(producto.estaBajoMinimo()).toBe(false);
+  });
+});
+
 describe('Producto — presentación', () => {
   let producto: Producto;
 
