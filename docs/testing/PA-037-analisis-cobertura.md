@@ -3,8 +3,8 @@
 > Informe compartido entre los dos repositorios. Hay una copia idéntica en
 > `Proyecto1-Back-…/docs/testing/` y otra en `cwtech-proyecto1-frontend/docs/testing/`.
 >
-> - **Fecha:** 2026-09-24
-> - **Base medida:** back `testing` @ `ad021035`, front `Pa-020-Testing` @ `26124b1`
+> - **Fecha:** 2026-09-25 (revisión del backend)
+> - **Base medida:** back `testing` @ `0631e18`, front `Pa-020-Testing` @ `26124b1`
 > - **Objetivo de cobertura:** 70 %
 
 ## 1. Resumen
@@ -12,11 +12,11 @@
 | | Back (NestJS + Jest) | Front (React + Vitest) |
 |---|---|---|
 | Suites / archivos de test | 55 | 15 |
-| Casos | 336, todos en verde | 54, todos en verde |
+| Casos | 357 ejecutados; 1 suite no inicia por un error preexistente | 54, todos en verde |
 | Tipo de test | Solo unitarios (el único e2e no corre) | Solo unitarios de componentes y utilidades |
-| Statements, medición bruta | **22,7 %** (1425/6287) | **10,0 %** (2522/25324) |
-| Statements, ajustada ¹ | **27,6 %** (1425/5159) | **10,9 %** (2373/21719) |
-| Módulo de productos, ajustada ¹ | **43,2 %** (709/1643) | **19,7 %** (1402/7132) |
+| Statements, medición bruta | **24,1 %** (medición completa posterior a esta tanda) | **10,0 %** (2522/25324) |
+| Statements, ajustada ¹ | 27,6 % (línea base; recalcular en la próxima medición) | **10,9 %** (2373/21719) |
+| Módulo de productos, ajustada ¹ | 43,2 % (línea base; recalcular en la próxima medición) | **19,7 %** (1402/7132) |
 | ¿Cumple el 70 %? | No | No |
 
 ¹ **Ajustada.** En el back se excluyen seeders, migraciones y los `*.module.ts`. En el front se
@@ -24,15 +24,17 @@ excluyen los componentes shadcn/ui generados y el código muerto de `gestion-pro
 El número bruto es el que da la herramienta. El ajustado es el que conviene usar para medir el
 objetivo, una vez que el equipo acepte esas exclusiones.
 
-**Cobertura combinada de la aplicación:** unos **14 %** de statements ajustados, 3798 de 26878.
-**Producto (back + front):** unos **24 %**, 2111 de 8775.
+**Cobertura combinada de la aplicación:** la cifra ajustada de esta revisión queda pendiente de
+recalcular; la línea base anterior era de unos **14 %** de statements ajustados.
+**Producto (back + front):** la línea base anterior era de unos **24 %**.
 
-**Conclusión.** El objetivo del 70 % está lejos en los dos repositorios. La lógica de dominio de
-producto está bien testeada: precio, stock, historial de precios, presentación y denominación
+**Conclusión.** El objetivo del 70 % sigue lejos en los dos repositorios. En esta revisión del
+backend se agregaron 21 casos de comportamiento y la medición bruta subió de 22,7 % a 24,1 %.
+La lógica de dominio de producto está bien testeada: precio, stock, historial de precios, presentación y denominación
 automática. Lo que hunde el número es:
 
-- **Back:** las capas de repositorio en 0 %, Marca sin tests de reglas y 32 specs que solo
-  verifican `should be defined`.
+- **Back:** todavía hay adapters sin cobertura, aunque el adapter de Producto ya tiene tests de
+  comportamiento; 32 specs solo verifican `should be defined`.
 - **Front:** las pantallas de consulta, el cambio masivo de precios y los módulos de organización
   y herramientas, todos sin tests.
 
@@ -149,9 +151,9 @@ corre: a `jest-e2e.json` le falta el `moduleNameMapper` de `src/` y el test nece
 
 La meta es llevar `gestion-productos` del 43 % a más del 70 %. Faltan unos 440 statements.
 
-1. **Repositorios de gestion-productos (0 %, unos 600 statements sin cubrir). Es el salto más
-   grande.** Hoy el único spec de adapter usa un QueryBuilder mock con `toHaveBeenCalledWith`,
-   que no detecta si se agrega o se quita una condición. Hay dos caminos:
+1. **Repositorios de gestion-productos (cobertura parcial, todavía con mucho código sin cubrir).**
+   El adapter de Producto ahora prueba filtros, paginación, existencias, persistencia y errores.
+   El resto de adapters sigue pendiente. Hay dos caminos:
    - **(a)** Tests de integración contra SQLite en memoria. `test/jest-setup.ts` ya define las
      variables, pero ningún test crea un `DataSource`. Sería el primer nivel de integración.
    - **(b)** Seguir con mocks, afirmando la lista completa de condiciones.
@@ -163,14 +165,12 @@ La meta es llevar `gestion-productos` del 43 % a más del 70 %. Faltan unos 440 
    - `existsProductosActivosBy*`, que son la base de las bajas en cascada.
    - `removeAndReassign` de SuperLínea.
    - `remove` → "Entidad ya eliminada".
-2. **Bajas sin ningún test:**
-   - Producto: `producto.service.ts:144`, soft delete y protección de entidades de sistema.
-   - Línea: `linea.service.ts:188`, que no se puede dar de baja con productos activos.
-   - Marca: `marca.service.ts:136`.
-3. **Marca:** el servicio no tiene tests de reglas. Faltan unicidad de denominación, entidad de
-   sistema → 403 y baja con productos activos → 409.
-4. **Vista previa del cambio masivo** (`producto.service.ts:352-400`): 0 tests. Marca
-   `valido:false` por producto y cuenta `cantidadInvalidos`.
+2. **Bajas pendientes:** Producto: `producto.service.ts:144`, soft delete y protección de
+   entidades de sistema. Las bajas de Línea y Marca ya tienen tests de comportamiento.
+3. **Marca:** ahora están cubiertas la unicidad de denominación, entidad de sistema → 403, baja
+   con productos activos → 409, usuario inexistente y baja exitosa.
+4. **Vista previa del cambio masivo** (`producto.service.ts:352-400`): ahora cubre cálculo válido,
+   producto inválido, alcance por línea y ausencia de productos.
 5. **Unicidad del producto:** `ProductoUniquenessValidator` (denominación y código de proveedor)
    y `ProductoRelatedEntitiesValidator` (marca, línea y envase activo) están siempre mockeados.
 6. **Precio con IVA** (`producto.mapper.ts:113`): la regla de IVA que se muestra al usuario no
@@ -274,3 +274,18 @@ Reportados en el análisis y **no verificados** por separado:
 - `localidad.service.ts:51` lanza un `Error` genérico, lo que da un 500.
 - El mensaje de `alicuota-iva.service` dice "Marca".
 - La ruta `cambio-precios-masivo` del front no restringe por rol (el checklist pide Root/Admin).
+
+## 7. Revisión del backend — 2026-09-25
+
+Se agregaron 23 casos en tres tandas de commits:
+
+- `47162f4`: reglas de alta, modificación y baja de Marca; baja de Línea.
+- `064bbbe`: filtros, paginación, existencias, deduplicación y errores del adapter de Producto.
+- `0631e18`: vista previa del cambio masivo de precios.
+
+La ejecución completa `yarn test:cov --runInBand` ejecutó 357 tests: 54 suites pasaron y una suite
+(`producto.controller.spec.ts`) no llegó a ejecutar por `inheritValidationMetadata is not a function`
+al cargar `PartialType` de `@nestjs/swagger`. El error ya estaba documentado antes de esta tanda.
+Las suites modificadas se ejecutaron de forma aislada y quedaron verdes. La cobertura por módulo
+confirma el avance: `producto.service.ts` 84,47 %, `producto.persistence-adapters.ts` 49,62 % y
+`envase-presentacion.service.ts` 83,01 % en la medición completa.

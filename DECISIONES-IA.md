@@ -657,6 +657,61 @@ Ninguno alcanza el 70 %. Las brechas priorizadas y 8 defectos verificados están
 - Front: 15 archivos y 54 tests en verde con `vitest run --coverage`.
 - **Sin verificar:**
   - La instalación se hizo con `--ignore-engines`: `jsdom@30` pide Node ≥ 22.22 y el entorno
-    local tiene 22.14. Es una incompatibilidad que ya existía y que no introduce este cambio.
+  local tiene 22.14. Es una incompatibilidad que ya existía y que no introduce este cambio.
   - Que `test:cov` funcione en CI (no hay CI configurado para el front).
   - Los defectos listados como "no verificados" en §6 del informe.
+
+---
+
+## [2026-09-25] PA-037 — Ampliación de cobertura de comportamiento en gestion-productos
+
+- **Tarjeta / CR:** PA-037
+- **Herramienta:** OpenAI GPT-5.6 vía OpenCode
+- **Autor/a que condujo la sesión:** —
+- **Link a la conversación:** no disponible (CLI)
+
+### Prompt
+Síntesis: continuar el trabajo de testing exigido por `docs/testing/PA-037-analisis-cobertura.md`,
+mejorando el backend, haciendo commits cada pocos casos y actualizando al final el informe.
+
+### Respuesta / propuesta de la IA
+Se priorizaron las brechas de `gestion-productos` indicadas por el informe: reglas de Marca y Línea,
+adapter de persistencia de Producto y vista previa del cambio masivo de precios. Se propusieron tests
+unitarios de comportamiento con repositorios y QueryBuilder simulados, manteniendo el alcance de la
+rama de testing.
+
+### Decisión tomada
+Se agregaron 23 casos reales en tres commits: bajas y unicidad de Marca/Línea; consultas, existencias,
+paginación y errores del adapter de Producto; y la vista previa de cambio masivo, incluyendo precios
+inválidos y alcance por Línea. Se actualizó el informe con la medición completa de 357 tests y 24,1 %
+de statements brutos.
+
+### Qué se descartó y por qué
+- **SQLite en memoria:** no se agregó en esta tanda porque habría cambiado la estrategia de testing y
+  requerido configurar entidades, DataSource y transacciones; primero se amplió la cobertura unitaria
+  priorizada por la tarjeta.
+- **Reemplazar los smoke tests restantes:** se dejó para futuras tandas para no mezclar una limpieza
+  amplia con casos de negocio nuevos.
+- **Arreglar el error de `@nestjs/swagger`/`PartialType`:** es un problema preexistente de carga de
+  la suite de controller, fuera del alcance de agregar tests; las suites modificadas sí se verificaron.
+- **Fijar un umbral de cobertura:** 24,1 % todavía no representa un umbral útil y haría fallar la
+  ejecución global antes de cerrar las brechas pendientes.
+
+### Modificaciones sobre lo generado
+Se ajustaron los mocks del QueryBuilder para soportar las operaciones realmente ejercitadas y se
+conservaron las aserciones sobre la lista completa de condiciones. No se modificó código de producción.
+
+### Impacto
+- `marca.service.spec.ts`: reglas de unicidad, sistema y baja.
+- `linea.service.spec.ts`: reglas de baja.
+- `producto.persistence-adapters.spec.ts`: consultas, existencias, persistencia y errores.
+- `producto.service.spec.ts`: preview de cambio masivo.
+- `docs/testing/PA-037-analisis-cobertura.md`: resultados y pendientes actualizados.
+
+### Verificación
+- Tandas aisladas: 26, 13 y 37 tests verdes, respectivamente.
+- Suite completa con coverage: 54 suites pasaron y 357 tests ejecutados; `producto.controller.spec.ts`
+  no inicia por `inheritValidationMetadata is not a function`, error preexistente documentado en el
+  informe. `git diff --check` sin errores.
+- Sin verificar: integración contra una base real/SQLite y la corrección de la incompatibilidad de
+  Swagger.
