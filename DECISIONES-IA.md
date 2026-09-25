@@ -847,3 +847,54 @@ del equipo para ese merge.
 
   Después de la prueba se restauró el producto 7 en la base local.
 - **Sin verificar:** la UI en el navegador.
+
+## [2026-09-24] Revisión de deudas técnicas y entorno local sin conexión a la base
+
+- **Tarjeta / CR:** ninguna propia; revisión de deuda técnica
+- **Herramienta:** Claude Opus 5.5 vía Claude Code
+- **Autor/a que condujo la sesión:** Lisandro (PIPICBA)
+- **Link a la conversación:** no disponible (CLI)
+
+### Prompt
+
+Síntesis: revisar si las deudas documentadas siguen activas comprobándolas en el código, no en
+este archivo; arreglar el back, que no conectaba a la base; correr los seeds; registrar nuevas
+deudas.
+
+### Decisión tomada
+
+- **Causa del `ECONNREFUSED`:** faltaba el `.env`, así que el back usaba `localhost:3306`, mientras
+  `docker-compose.yml` publica MySQL en el `3310`. Además, al mover el back a la raíz (`d1a0f5a2`)
+  cambió el nombre del proyecto de compose: se crea un volumen nuevo
+  (`proyecto1-back-..._mysql_data`) vacío y los datos anteriores quedan en `proyecto_mysql_data`,
+  que no se tocó. Los 2 contenedores (`mysql` y `phpmyadmin`) son los esperados.
+- Se creó un `.env` local (ignorado por git) con `DB_HOST=localhost`, `DB_PORT=3310`,
+  `DB_DATABASE=proyecto`, `JWT_SECRET` y `JWT_EXPIRES_IN`. Sin `JWT_SECRET` el login responde 500
+  (`secretOrPrivateKey must have a value`). `.env-temp` no sirve para correr fuera de docker: apunta
+  a `mysql:3306` y no trae las variables de JWT.
+- Se corrieron las 7 migraciones y `GET /api/seed-all/execute`: 7 usuarios, 50 productos,
+  4 proveedores, 22 líneas.
+
+### Estado de las deudas ya registradas (comprobado ejecutando el código)
+
+- **Resuelta:** `search-by-rapido` con `exacto` explícito. En vivo, `exacto=false` devuelve 10
+  resultados y `exacto=true` 0, sin 400.
+- **Activa pero sin impacto en la UI:** `incluirEliminados` en `PaginationWithDenominacionDto`,
+  `DenominacionEmpresaOperadorDto` y `SearchLocalidadDto`. Con `plainToInstance` y
+  `enableImplicitConversion`, `"false"` llega como `true`. El front nunca manda `false` (omite el
+  parámetro), por eso las pantallas funcionan. Rompe una llamada directa a la API.
+- **Activa sin uso:** `codReferenciaExacto` sigue sin llegar a `findBy`, pero ningún front lo envía.
+- **Activa:** el seed crea `admin@gmail.com` con `admin`. `LoginDto` exige `@Length(8, 20)` (el
+  mensaje dice "entre 6 y 20"), así que esa cuenta nunca puede entrar.
+- **Activa:** 40 tests `should be defined`; 34 specs no tienen otro test.
+- **Sin verificar:** fechas adelantadas 3 horas (`timezone: '-03:00'` sigue en `app.module.ts`).
+
+### Deuda técnica detectada y no resuelta
+
+- **Testing e2e.** `test/app.e2e-spec.ts` es el placeholder de Nest (`GET /` espera
+  `'Hello World!'`) y levanta `AppModule` contra la base real, sin base de test ni seeds. No hay
+  ningún flujo cubierto de punta a punta (login, alta y baja de producto, cambio de precio). Del
+  lado del front tampoco hay e2e: solo tests unitarios con vitest.
+- **Recuperar un producto borrado.** Desde PA-055 la baja es lógica (`deletedAt`,
+  `usuario_deleted_id`) y los eliminados se pueden consultar, pero no hay endpoint ni acción en la
+  UI para restaurarlos. Hoy solo se recupera editando la base a mano.
