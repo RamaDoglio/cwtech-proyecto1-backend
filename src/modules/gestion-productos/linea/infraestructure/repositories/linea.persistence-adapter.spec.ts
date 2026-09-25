@@ -192,4 +192,23 @@ describe('LineaPersistenceAdapter', () => {
     repository.createQueryBuilder.mockReturnValue(auditMissing);
     await expect(adapter.findByIdConAuditoria(8)).resolves.toBeNull();
   });
+
+  it('traduce errores de consultas del adapter de Línea', async () => {
+    const broken = queryBuilder();
+    broken.getOne.mockRejectedValue(new Error('connection'));
+    repository.createQueryBuilder.mockReturnValue(broken);
+    await expect(adapter.findByDenominacion('broken')).rejects.toBeInstanceOf(
+      Error,
+    );
+
+    const brokenList = queryBuilder();
+    brokenList.getMany.mockRejectedValue(new Error('connection'));
+    repository.createQueryBuilder.mockReturnValue(brokenList);
+    await expect(adapter.findAllFor('broken')).rejects.toBeInstanceOf(Error);
+
+    const brokenAudit = queryBuilder();
+    brokenAudit.getRawOne.mockRejectedValue(new Error('connection'));
+    repository.createQueryBuilder.mockReturnValue(brokenAudit);
+    await expect(adapter.findByIdConAuditoria(8)).rejects.toBeInstanceOf(Error);
+  });
 });
