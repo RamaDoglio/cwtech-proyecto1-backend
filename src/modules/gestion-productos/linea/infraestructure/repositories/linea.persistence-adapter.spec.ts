@@ -150,6 +150,16 @@ describe('LineaPersistenceAdapter', () => {
     expect(selector.andWhere).toHaveBeenCalledWith('linea.sistema = :sistema', {
       sistema: 0,
     });
+
+    const listado = queryBuilder([{ id: 4 }]);
+    repository.createQueryBuilder.mockReturnValue(listado);
+    await expect(adapter.findAllListado()).resolves.toEqual([{ id: 4 }]);
+    await expect(adapter.findAllFor('lin')).resolves.toEqual([{ id: 4 }]);
+
+    const missing = queryBuilder();
+    missing.getOne.mockResolvedValue(null);
+    repository.createQueryBuilder.mockReturnValue(missing);
+    await expect(adapter.findByDenominacionWith('missing')).resolves.toBeNull();
   });
 
   it('devuelve auditoría, permite baja lógica y propaga ausencia', async () => {
@@ -176,5 +186,10 @@ describe('LineaPersistenceAdapter', () => {
     missing.getOne.mockResolvedValue(null);
     repository.createQueryBuilder.mockReturnValue(missing);
     await expect(adapter.findOne(8)).rejects.toBeInstanceOf(EntityNotFoundException);
+
+    const auditMissing = queryBuilder();
+    auditMissing.getRawOne.mockResolvedValue(null);
+    repository.createQueryBuilder.mockReturnValue(auditMissing);
+    await expect(adapter.findByIdConAuditoria(8)).resolves.toBeNull();
   });
 });
