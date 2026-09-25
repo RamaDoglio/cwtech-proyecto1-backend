@@ -16,7 +16,7 @@
 | Tipo de test | Solo unitarios (el único e2e no corre) | Solo unitarios de componentes y utilidades |
 | Statements, medición bruta | **24,1 %** (medición completa posterior a esta tanda) | **10,0 %** (2522/25324) |
 | Statements, ajustada ¹ | 27,6 % (línea base; recalcular en la próxima medición) | **10,9 %** (2373/21719) |
-| Módulo de productos, ajustada ¹ | 43,2 % (línea base; recalcular en la próxima medición) | **19,7 %** (1402/7132) |
+| Módulo de productos, ajustada ¹ | **70,02 %** (1698/2425; medición aislada del módulo) | **19,7 %** (1402/7132) |
 | ¿Cumple el 70 %? | No | No |
 
 ¹ **Ajustada.** En el back se excluyen seeders, migraciones y los `*.module.ts`. En el front se
@@ -149,7 +149,10 @@ corre: a `jest-e2e.json` le falta el `moduleNameMapper` de `src/` y el test nece
 
 ### 5.1 Back — producto
 
-La meta es llevar `gestion-productos` del 43 % a más del 70 %. Faltan unos 440 statements.
+La meta era llevar `gestion-productos` del 43 % a más del 70 %. La medición aislada actual alcanza
+**70,02 %** (1698/2425 statements). La cobertura global del backend sigue siendo baja porque los
+módulos fuera de productos conservan muchos servicios, adapters y smoke tests sin comportamiento
+cubierto.
 
 1. **Repositorios de gestion-productos (cobertura parcial, todavía con mucho código sin cubrir).**
    El adapter de Producto ahora prueba filtros, paginación, existencias, persistencia y errores.
@@ -289,3 +292,19 @@ al cargar `PartialType` de `@nestjs/swagger`. El error ya estaba documentado ant
 Las suites modificadas se ejecutaron de forma aislada y quedaron verdes. La cobertura por módulo
 confirma el avance: `producto.service.ts` 84,47 %, `producto.persistence-adapters.ts` 49,62 % y
 `envase-presentacion.service.ts` 83,01 % en la medición completa.
+
+### 7.1 Continuación — cobertura aislada de `gestion-productos`
+
+Después de esa medición se agregaron tests de comportamiento para el controller de Producto y para
+los adapters de Línea y Marca. La suite aislada del módulo ejecuta 27 suites y 358 tests, todos en
+verde, con estos resultados:
+
+| Métrica | Resultado |
+|---|---:|
+| Statements | **70,02 %** (1698/2425) |
+| Branches | 66,66 % (360/540) |
+| Functions | 46,39 % (225/485) |
+| Lines | 70,52 % (1622/2300) |
+
+El objetivo de 70 % se considera cumplido para `gestion-productos` usando statements, que es la
+métrica definida en este informe. La medición global del backend no se recalculó en esta tanda.

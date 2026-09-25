@@ -715,3 +715,52 @@ conservaron las aserciones sobre la lista completa de condiciones. No se modific
   informe. `git diff --check` sin errores.
 - Sin verificar: integración contra una base real/SQLite y la corrección de la incompatibilidad de
   Swagger.
+
+## [2026-09-25] PA-037 — Alcance de 70 % para gestion-productos
+
+- **Tarjeta / CR:** PA-037
+- **Herramienta:** OpenAI GPT-5.6 vía OpenCode
+- **Autor/a que condujo la sesión:** —
+- **Link a la conversación:** no disponible (CLI)
+
+### Prompt
+Síntesis: continuar la ampliación de tests del backend, medir nuevamente `gestion-productos` y
+seguir trabajando si todavía no supera el 70 %.
+
+### Respuesta / propuesta de la IA
+Se midió el módulo de forma aislada con Jest y se priorizaron las brechas con mejor relación entre
+casos de comportamiento y statements cubribles: controller de Producto y adapters de Línea y Marca.
+Se mantuvo el enfoque unitario con QueryBuilders, repositorios y transacciones simulados.
+
+### Decisión tomada
+Se agregaron tests para delegación HTTP del controller, creación, actualización, búsquedas, bajas,
+auditoría, stock, precios e historial, además de consultas, paginación, auditoría, baja lógica y
+errores de los adapters de Línea y Marca. La medición aislada final de `gestion-productos` es
+**70,02 % de statements (1698/2425)**, con 27 suites y 358 tests verdes.
+
+### Qué se descartó y por qué
+- **SQLite o integración contra una base real:** no era necesario para cruzar el umbral y habría
+  cambiado la estrategia, incorporando configuración de entidades, DataSource y transacciones.
+- **Tests de todos los repositorios restantes:** se priorizó alcanzar el objetivo con comportamiento
+  relevante; quedan pendientes adapters de Producto, SuperLínea y Envase en la medición de cobertura
+  del código que aún no ejecutan los specs.
+- **Fijar un `coverageThreshold` global:** el backend completo sigue por debajo del 70 % y el umbral
+  haría fallar la suite global antes de cerrar la deuda de los demás módulos.
+
+### Modificaciones sobre lo generado
+El spec del controller necesitó un mock de `PartialType` de `@nestjs/swagger` para evitar la
+incompatibilidad de versiones existente al cargar la suite. Los adapters requirieron mocks de
+QueryBuilder y QueryRunner para probar sus caminos sin conectar una base real.
+
+### Impacto
+- `src/modules/gestion-productos/producto/application/controllers/producto.controller.spec.ts`
+- `src/modules/gestion-productos/linea/infraestructure/repositories/linea.persistence-adapter.spec.ts`
+- `src/modules/gestion-productos/marca/infraestructure/repositories/marca.persistence-adapters.spec.ts`
+- `docs/testing/PA-037-analisis-cobertura.md`
+- No se modificó código de producción ni contratos HTTP.
+
+### Verificación
+- Suite aislada: 27 suites y 358 tests en verde.
+- Cobertura aislada: 70,02 % statements, 66,66 % branches, 46,39 % functions y 70,52 % lines.
+- Sin verificar: nueva ejecución de la suite completa global después de esta tanda y cobertura global
+  recalculada; la incompatibilidad de Swagger permanece documentada.
