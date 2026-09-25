@@ -43,6 +43,7 @@ const mockRepository = {
   existsProductosActivosByMarca: jest.fn(),
   existsProductosActivosByLinea: jest.fn(),
   findByIds: jest.fn(),
+  findActivosParaAjustePrecio: jest.fn(),
   updateEntity: jest.fn(),
 };
 
@@ -169,6 +170,84 @@ describe('ProductoService', () => {
       0,
       10,
     );
+  });
+
+  describe('previewCambioMasivo', () => {
+    const producto = (id: number, precio: number) =>
+      Object.assign(new Producto(), {
+        id,
+        denominacion: `producto ${id}`,
+        precio,
+      });
+
+    it('calcula los precios nuevos y marca los inválidos sin modificar productos', async () => {
+      mockUsuarioValidator.validarUsuarioExiste.mockResolvedValue({ id: 7 });
+      mockRepository.findActivosParaAjustePrecio.mockResolvedValue([
+        producto(1, 100),
+        producto(2, 0),
+      ]);
+
+      await expect(
+        service.previewCambioMasivo({
+          tipo: TipoAumento.PORCENTAJE,
+          valor: -50,
+          alcance: AlcanceAjustePrecio.GLOBAL,
+          usuarioId: 7,
+        } as CambioPreciosMasivoDto),
+      ).resolves.toEqual({
+        items: [
+          expect.objectContaining({
+            productoId: 1,
+            precioActual: 100,
+            precioNuevo: 50,
+            valido: true,
+          }),
+          expect.objectContaining({
+            productoId: 2,
+            precioActual: 0,
+            precioNuevo: null,
+            valido: false,
+          }),
+        ],
+        cantidadTotal: 2,
+        cantidadInvalidos: 1,
+      });
+      expect(mockRepository.findActivosParaAjustePrecio).toHaveBeenCalledWith(
+        undefined,
+      );
+      expect(mockRepository.update).not.toHaveBeenCalled();
+    });
+
+    it('pasa la línea al repositorio cuando el alcance es LINEA', async () => {
+      mockUsuarioValidator.validarUsuarioExiste.mockResolvedValue({ id: 7 });
+      mockRepository.findActivosParaAjustePrecio.mockResolvedValue([
+        producto(3, 100),
+      ]);
+
+      await service.previewCambioMasivo({
+        tipo: TipoAumento.MONTO_FIJO,
+        valor: 25,
+        alcance: AlcanceAjustePrecio.LINEA,
+        lineaId: 4,
+        usuarioId: 7,
+      } as CambioPreciosMasivoDto);
+
+      expect(mockRepository.findActivosParaAjustePrecio).toHaveBeenCalledWith(4);
+    });
+
+    it('rechaza previsualizar cuando no hay productos activos', async () => {
+      mockUsuarioValidator.validarUsuarioExiste.mockResolvedValue({ id: 7 });
+      mockRepository.findActivosParaAjustePrecio.mockResolvedValue([]);
+
+      await expect(
+        service.previewCambioMasivo({
+          tipo: TipoAumento.PORCENTAJE,
+          valor: 10,
+          alcance: AlcanceAjustePrecio.GLOBAL,
+          usuarioId: 7,
+        } as CambioPreciosMasivoDto),
+      ).rejects.toBeInstanceOf(NotFoundException);
+    });
   });
 
   it('revierte el ajuste completo si falla la persistencia del movimiento', async () => {
