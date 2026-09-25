@@ -146,7 +146,7 @@ describe('LineaPersistenceAdapter', () => {
 
     const selector = queryBuilder([{ id: 3 }]);
     repository.createQueryBuilder.mockReturnValue(selector);
-    await expect(adapter.findAllSinSistemaFor('')).resolves.toEqual([{ id: 3 }]);
+    await expect(adapter.findAllSinSistemaFor('line')).resolves.toEqual([{ id: 3 }]);
     expect(selector.andWhere).toHaveBeenCalledWith('linea.sistema = :sistema', {
       sistema: 0,
     });
@@ -191,6 +191,11 @@ describe('LineaPersistenceAdapter', () => {
     auditMissing.getRawOne.mockResolvedValue(null);
     repository.createQueryBuilder.mockReturnValue(auditMissing);
     await expect(adapter.findByIdConAuditoria(8)).resolves.toBeNull();
+
+    const brokenOne = queryBuilder();
+    brokenOne.getOne.mockRejectedValue(new Error('connection'));
+    repository.createQueryBuilder.mockReturnValue(brokenOne);
+    await expect(adapter.findOne(8)).rejects.toBeInstanceOf(Error);
   });
 
   it('traduce errores de consultas del adapter de Línea', async () => {
