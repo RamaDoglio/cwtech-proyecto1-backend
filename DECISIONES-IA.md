@@ -574,3 +574,89 @@ Ninguna por ahora; pendiente de revisión del equipo.
     `findBy` no rompe ningún test. Se cubre en PA-055.
   - 40 tests del back son solo `should be defined` (el placeholder que genera Nest): pasan
     siempre y no prueban comportamiento. Quedan como deuda.
+
+## [2026-09-24] PA-037 — Análisis de los tests automáticos y de la cobertura (back + front)
+
+- **Tarjeta / CR:** PA-037
+- **Herramienta:** Claude Opus 5.5 vía Claude Code (extensión de VS Code)
+- **Autor/a que condujo la sesión:** Lisandro
+- **Link a la conversación:** no disponible (CLI)
+
+> Decisión compartida entre los dos repos. Hay una entrada equivalente en el `DECISIONES-IA.md`
+> del otro repositorio. El informe completo está en `docs/testing/PA-037-analisis-cobertura.md`,
+> idéntico en ambos.
+
+### Prompt
+(Resumido.) Analizar los tests actuales de la aplicación: qué módulos alcanzan, qué casos de uso
+siguen y qué reglas de negocio verifican. Estimar el porcentaje de cobertura frente al objetivo
+del 70 % y, si no se cumple, identificar los puntos clave a mejorar, con atención especial a
+producto. Trabajar en una rama que sale de testing, como parte de PA-037. Los tests automáticos
+existentes son solo unitarios.
+
+Aclaraciones del usuario:
+
+- Alcance: back y front.
+- Medir de verdad y además analizar.
+- "Producto" es el módulo `gestion-productos` completo.
+- Entregable: un informe `.md` en el repo más esta entrada, sin escribir tests nuevos todavía.
+
+### Respuesta / propuesta de la IA
+- Se midió la cobertura real:
+  - Back: `jest --coverage` con la configuración existente.
+  - Front: se agregó `@vitest/coverage-v8` y la sección `coverage` de `vitest.config.ts`.
+- Se calculó una cobertura "ajustada":
+  - Back: sin seeders, migraciones ni `*.module.ts`.
+  - Front: sin shadcn/ui ni código muerto.
+- Se analizó cada spec para mapear casos de uso y reglas.
+
+Resultados, en statements:
+
+| | Bruta | Ajustada | Productos (ajustada) |
+|---|---:|---:|---:|
+| Back | 22,7 % | 27,6 % | 43,2 % |
+| Front | 10,0 % | 10,9 % | 19,7 % |
+
+Ninguno alcanza el 70 %. Las brechas priorizadas y 8 defectos verificados están en el informe.
+
+### Decisión tomada
+- Rama `PA-037-analisis-cobertura` en los dos repos. En el back sale de `testing`; en el front,
+  de `Pa-020-Testing`.
+- Front:
+  - Se agrega `@vitest/coverage-v8` 3.2.7 como devDependency.
+  - Se configura `coverage` en `vitest.config.ts` (reporters text, json-summary, html y lcov).
+  - Se agrega el script `yarn test:cov`.
+  - Se agrega `/coverage` a `.gitignore`.
+- Se agrega el informe `docs/testing/PA-037-analisis-cobertura.md` en ambos repos.
+
+### Qué se descartó y por qué
+- **Estimar la cobertura solo leyendo el código:** era menos confiable y el costo de medir era
+  bajo.
+- **Excluir ya el código muerto y shadcn/ui en `vitest.config.ts`:** es una decisión del equipo.
+  Excluir sin avisar mejora el número escondiendo código. El informe muestra las dos cifras y
+  recomienda borrar el código muerto.
+- **Fijar ahora `coverageThreshold` / `thresholds`:** con 10–28 % haría fallar la suite sin
+  aportar nada. Queda recomendado para después de cerrar las brechas de producto.
+- **Arreglar en esta rama los defectos encontrados** (entre ellos el cambio de contraseña sin
+  verificación del código): la rama de testing solo recibe cambios de testing y el entregable
+  pedido era el análisis. Van a tarjetas propias.
+- **Instalar con npm:** el front usa yarn (README y `node_modules/.yarn-integrity`).
+
+### Modificaciones sobre lo generado
+- El conteo de casos de producto se corrigió a mano contra el número real de `it`.
+- Los hallazgos más graves de los agentes de lectura se verificaron uno por uno en el código. Los
+  que no se verificaron quedan marcados así en el informe.
+
+### Impacto
+- **Front:** `package.json`, `yarn.lock`, `vitest.config.ts`, `.gitignore` y
+  `docs/testing/PA-037-analisis-cobertura.md`.
+- **Back:** `docs/testing/PA-037-analisis-cobertura.md`.
+- Sin cambios en código de producción ni en tests.
+
+### Verificación
+- Back: 55 suites y 336 tests en verde con coverage.
+- Front: 15 archivos y 54 tests en verde con `vitest run --coverage`.
+- **Sin verificar:**
+  - La instalación se hizo con `--ignore-engines`: `jsdom@30` pide Node ≥ 22.22 y el entorno
+    local tiene 22.14. Es una incompatibilidad que ya existía y que no introduce este cambio.
+  - Que `test:cov` funcione en CI (no hay CI configurado para el front).
+  - Los defectos listados como "no verificados" en §6 del informe.
