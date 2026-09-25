@@ -68,6 +68,11 @@ describe('MarcaPersistenceAdapter', () => {
     repository.createQueryBuilder.mockReturnValue(sistema);
     await expect(adapter.findAllSistemaFor('sys')).resolves.toEqual([{ id: 2 }]);
     await expect(adapter.findAllSinSistemaFor('user')).resolves.toEqual([{ id: 2 }]);
+
+    const listado = queryBuilder([{ id: 3 }]);
+    repository.createQueryBuilder.mockReturnValue(listado);
+    await expect(adapter.findAllListado()).resolves.toEqual([{ id: 3 }]);
+    await expect(adapter.findAllFor('ac')).resolves.toEqual([{ id: 3 }]);
   });
 
   it('resuelve búsquedas auxiliares, auditoría y errores de conexión', async () => {
@@ -83,5 +88,13 @@ describe('MarcaPersistenceAdapter', () => {
     audit.getRawOne.mockResolvedValue({ marca_id: 1, marca_denominacion: 'ACME' });
     repository.createQueryBuilder.mockReturnValue(audit);
     await expect(adapter.findByIdConAuditoria(1)).resolves.toEqual(expect.objectContaining({ id: 1, detalle: 'Marca ACME' }));
+
+    unitRepository.findOneBy.mockResolvedValue(null);
+    await expect(adapter.update(99, {})).rejects.toThrow('Marca no encontrada');
+
+    const empty = queryBuilder();
+    empty.getOne.mockResolvedValue(null);
+    repository.createQueryBuilder.mockReturnValue(empty);
+    await expect(adapter.findByDenominacionWith('missing')).resolves.toBeNull();
   });
 });
