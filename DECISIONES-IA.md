@@ -575,326 +575,192 @@ Ninguna por ahora; pendiente de revisión del equipo.
   - 40 tests del back son solo `should be defined` (el placeholder que genera Nest): pasan
     siempre y no prueban comportamiento. Quedan como deuda.
 
-## [2026-09-24] PA-053 — Detalles del producto: responsable en el historial de precios y auditoría que muestra solo lo que existe
+## [2026-09-24] PA-037 — Análisis de los tests automáticos y de la cobertura (back + front)
 
-- **Tarjeta / CR:** PA-053. Revierte parcialmente lo descartado en PA-019 (mostrar el usuario del cambio de precio)
-- **Herramienta:** Claude Opus 5.5 vía Claude Code
-- **Autor/a que condujo la sesión:** Lisandro (PIPICBA)
+- **Tarjeta / CR:** PA-037
+- **Herramienta:** Claude Opus 5.5 vía Claude Code (extensión de VS Code)
+- **Autor/a que condujo la sesión:** Lisandro
 - **Link a la conversación:** no disponible (CLI)
-- **Repos:** back y front; la misma entrada está en el `DECISIONES-IA.md` de cada uno.
+
+> Decisión compartida entre los dos repos. Hay una entrada equivalente en el `DECISIONES-IA.md`
+> del otro repositorio. El informe completo está en `docs/testing/PA-037-analisis-cobertura.md`,
+> idéntico en ambos.
 
 ### Prompt
+(Resumido.) Analizar los tests actuales de la aplicación: qué módulos alcanzan, qué casos de uso
+siguen y qué reglas de negocio verifican. Estimar el porcentaje de cobertura frente al objetivo
+del 70 % y, si no se cumple, identificar los puntos clave a mejorar, con atención especial a
+producto. Trabajar en una rama que sale de testing, como parte de PA-037. Los tests automáticos
+existentes son solo unitarios.
 
-Síntesis: el botón de información (la "I") muestra el último cambio pero no qué se cambió, y el
-historial de precios (el reloj) no muestra quién hizo cada cambio. Analizar qué guarda la
-auditoría y si se puede rastrear qué campo cambió. El equipo decidió que PA-053 **se limita a
-mostrar mejor lo que ya existe** y a que se vea como corresponde, sin agregar un registro de
-cambios por campo.
+Aclaraciones del usuario:
 
-### Respuesta / propuesta de la IA
-
-- La auditoría de producto son columnas de la misma fila: `createdAt`, `updatedAt`, `deletedAt` y
-  los usuarios de creación, última modificación y baja. Cada edición pisa a la anterior, así que
-  no se puede saber qué campo cambió. El módulo `gestion-sistema/auditoria` es un esqueleto del
-  CLI de Nest sin implementar. Los únicos rastros por campo son `historial_precio` y
-  `movimiento_stock`.
-- `historial_precio.usuario_id` ya se guardaba (en la base local, el cambio del producto 1 es de
-  Jenifer Lopez), pero `findHistorialPrecios` no cargaba la relación y devolvía solo el id.
-- En el modal de auditoría: `updatedAt` se completa ya al crear, así que el bloque "Actualizado"
-  aparecía siempre, con "No especificado"; el ID para Root dependía de un `rolId` que el token no
-  trae, y por eso hacía una request al backend en cada apertura; y `mapProductoToDto` respondía 500
-  si el producto no tenía usuario creador.
-
-### Decisión tomada
-
-- Back: `findHistorialPrecios` carga `usuario` y devuelve `usuarioDenominacion` (null si no hay
-  usuario), sin quitar `usuarioId`. `mapProductoToDto` tolera un producto sin creador.
-- Front: columna "Responsable" en el historial de precios ("—" si no hay). En el modal de
-  auditoría, el bloque pasa a llamarse "Última modificación" y solo aparece si hubo usuario de
-  modificación o una fecha distinta a la de creación. El ID para Root se decide con
-  `getRoles().includes(Rol.ROOT)`.
-
-### Qué se descartó y por qué
-
-- **Registrar los cambios por campo (tabla de bitácora con campo, valor anterior y nuevo):** lo
-  descartó el equipo para esta tarjeta. Cambia el modelo y el esquema, y PA-053 es de
-  visualización.
-- **Mantener lo descartado en PA-019 (mostrar solo el id):** ese descarte se basaba en que el
-  backend no devolvía el nombre. Ahora lo devuelve.
-- **Resolver el nombre del usuario en el front con otra request:** una consulta extra por cada fila,
-  cuando el backend ya tiene la relación.
-- **Ocultar "Última modificación" comparando solo `usuarioUpdated`:** los registros viejos pueden
-  tener fecha de modificación sin usuario. Por eso también se compara la fecha.
-
-### Modificaciones sobre lo generado
-
-Ninguna por ahora; pendiente de revisión del equipo.
-
-### Impacto
-
-- Back: `producto.service.ts` (`findHistorialPrecios`), `dto/historial-precio.dto.ts`,
-  `gestion-sistema/auditoria/mappers/auditoria.mapper.ts`, `producto.service.spec.ts` y el nuevo
-  `auditoria.mapper.spec.ts`.
-- Front: `interfaces-historial-precios.tsx`, `modales/historial-precios-modal.tsx` y su test,
-  `herramientas/reutilizables/informacion-auditoria.tsx` (modal genérico, lo usan también
-  clientes, proveedores, etc.) y el nuevo `informacion-auditoria.test.tsx`.
-- Contrato: `GET /producto/:id/historial-precios` suma `usuarioDenominacion`, y no se quita nada.
-
-### Verificación
-
-- Back: tests del service y del mapper en verde (39 en esos specs). El test del historial
-  verifica que se pida la relación `usuario` y que la respuesta traiga el nombre, o `null`.
-- Front: `vitest run` con 16 archivos y 57 tests en verde. `tsc` sin errores nuevos (125, igual que
-  testing). El test "sin modificaciones" falla con el código anterior, porque el bloque aparecía
-  siempre.
-- **Sin verificar:** el modal en el navegador.
-
-### Deuda técnica detectada y no resuelta
-
-- **Fechas de creación y modificación adelantadas 3 horas.** MySQL (contenedor en UTC) genera
-  `createdAt` y `updatedAt` con `CURRENT_TIMESTAMP` en UTC, pero TypeORM está configurado con
-  `timezone: '-03:00'` y los lee como si fueran hora local. `deletedAt` lo carga la app y queda
-  bien. Verificado en la base local: a las 00:00 locales, una baja dejó `deletedAt` 00:00 y
-  `updatedAt` 03:00. Afecta a todas las entidades con `@CreateDateColumn` o `@UpdateDateColumn`
-  (en el modal, "Creado" y "Última modificación"). No se corrigió porque cambia el manejo de
-  fechas de todo el sistema: queda pendiente de decisión del equipo.
-
-## [2026-09-24] PA-055 — Soft delete de productos: la baja se guarda y los eliminados se pueden consultar
-
-- **Tarjeta / CR:** PA-055
-- **Herramienta:** Claude Opus 5.5 vía Claude Code
-- **Autor/a que condujo la sesión:** Lisandro (PIPICBA)
-- **Link a la conversación:** no disponible (CLI)
-- **Repos:** back y front; la misma entrada está en el `DECISIONES-IA.md` de cada uno.
-
-### Prompt
-
-Síntesis: al eliminar un producto no pasa nada. Analizar qué guarda el soft delete y por qué no se
-refleja en el front. Agregar un booleano al lado de filtrados/mostrados para ver los productos
-eliminados, y que en la "I" de esos productos aparezca "Eliminado por" en rojo, con los mismos
-datos que los otros bloques.
+- Alcance: back y front.
+- Medir de verdad y además analizar.
+- "Producto" es el módulo `gestion-productos` completo.
+- Entregable: un informe `.md` en el repo más esta entrada, sin escribir tests nuevos todavía.
 
 ### Respuesta / propuesta de la IA
+- Se midió la cobertura real:
+  - Back: `jest --coverage` con la configuración existente.
+  - Front: se agregó `@vitest/coverage-v8` y la sección `coverage` de `vitest.config.ts`.
+- Se calculó una cobertura "ajustada":
+  - Back: sin seeders, migraciones ni `*.module.ts`.
+  - Front: sin shadcn/ui ni código muerto.
+- Se analizó cada spec para mapear casos de uso y reglas.
 
-- **Back:** `ProductoService.remove` marcaba `deletedAt` y `usuarioDeleted` y después llamaba a
-  `repository.remove()`. El adapter rechaza con 404 "Entidad ya eliminada." todo producto que ya
-  trae `deletedAt`, así que la baja nunca se guardaba. Reproducido en vivo: `DELETE /producto/7`
-  respondía 404 y la fila quedaba intacta. El bug está desde `a07ce54f` (11/09). En envase y en el
-  resto de las entidades, el que marca la baja es el adapter.
-- **Front:** la alerta del 404 sí aparecía, pero `handleDelete` relanzaba la búsqueda, el spinner
-  desmontaba las alertas (estaban dentro de la rama "no está cargando") y desaparecía al instante.
-- **Consulta de eliminados:** las dos búsquedas filtraban siempre `deletedAt IS NULL`. La
-  auditoría (`findByIdConAuditoria`) no filtra, así que la "I" funciona para un eliminado.
-- **El modal ya tenía** un bloque "Eliminado" en rojo que nunca se veía. Como la baja pisa
-  `updatedAt`, el bloque de actualización mostraría la fecha de la baja con el editor anterior.
+Resultados, en statements:
+
+| | Bruta | Ajustada | Productos (ajustada) |
+|---|---:|---:|---:|
+| Back | 22,7 % | 27,6 % | 43,2 % |
+| Front | 10,0 % | 10,9 % | 19,7 % |
+
+Ninguno alcanza el 70 %. Las brechas priorizadas y 8 defectos verificados están en el informe.
 
 ### Decisión tomada
-
-- **Back:**
-  - El adapter recibe el usuario y marca la baja (`remove(producto, usuario)`), igual que envase.
-  - `incluirEliminados` (con `@ToBoolean(false)`) en `search-by` y `search-by-rapido`, como último
-    parámetro con valor por defecto, para no romper la firma posicional.
-  - `eliminado` en cada producto del listado.
-- **Front:**
-  - Toggle "Mostrar eliminados" junto a filtrados/mostrados, en los dos headers; al cambiarlo se
-    relanza la búsqueda activa (rápida o filtrada).
-  - Los eliminados se marcan con "Eliminado" en rojo y solo ofrecen "Ver información".
-  - Las alertas quedan fuera del spinner, y la confirmación explica que es una baja lógica.
-  - En el modal, para un registro eliminado se reemplaza "Actualizado" por "Eliminado por" en rojo.
-- **Semántica del toggle:** *incluye* los eliminados junto a los activos, no muestra "solo
-  eliminados". Es la misma convención que `incluirEliminados` en los DTOs comunes del back.
+- Rama `PA-037-analisis-cobertura` en los dos repos. En el back sale de `testing`; en el front,
+  de `Pa-020-Testing`.
+- Front:
+  - Se agrega `@vitest/coverage-v8` 3.2.7 como devDependency.
+  - Se configura `coverage` en `vitest.config.ts` (reporters text, json-summary, html y lcov).
+  - Se agrega el script `yarn test:cov`.
+  - Se agrega `/coverage` a `.gitignore`.
+- Se agrega el informe `docs/testing/PA-037-analisis-cobertura.md` en ambos repos.
 
 ### Qué se descartó y por qué
-
-- **Arreglarlo sacando el chequeo del adapter:** se perdía la protección contra dar de baja dos
-  veces. Además, el resto de las entidades ya usa el patrón de que el adapter marque la baja.
-- **Toggle de "solo eliminados":** duplica la búsqueda y rompe la convención de `incluirEliminados`.
-  Se puede agregar después si el equipo lo pide.
-- **Permitir editar, ajustar stock o ver el historial de un eliminado:** esos endpoints usan
-  `findOne`, que filtra `deletedAt`, y responderían 404. Restaurar un producto queda fuera del
-  alcance de PA-055.
-- **Evitar que la baja pise `updatedAt`:** requiere una actualización a medida que saltee
-  `@UpdateDateColumn`. Se resolvió en la vista, reemplazando el bloque.
+- **Estimar la cobertura solo leyendo el código:** era menos confiable y el costo de medir era
+  bajo.
+- **Excluir ya el código muerto y shadcn/ui en `vitest.config.ts`:** es una decisión del equipo.
+  Excluir sin avisar mejora el número escondiendo código. El informe muestra las dos cifras y
+  recomienda borrar el código muerto.
+- **Fijar ahora `coverageThreshold` / `thresholds`:** con 10–28 % haría fallar la suite sin
+  aportar nada. Queda recomendado para después de cerrar las brechas de producto.
+- **Arreglar en esta rama los defectos encontrados** (entre ellos el cambio de contraseña sin
+  verificación del código): la rama de testing solo recibe cambios de testing y el entregable
+  pedido era el análisis. Van a tarjetas propias.
+- **Instalar con npm:** el front usa yarn (README y `node_modules/.yarn-integrity`).
 
 ### Modificaciones sobre lo generado
-
-Ninguna por ahora; pendiente de revisión del equipo.
+- El conteo de casos de producto se corrigió a mano contra el número real de `it`.
+- Los hallazgos más graves de los agentes de lectura se verificaron uno por uno en el código. Los
+  que no se verificaron quedan marcados así en el informe.
 
 ### Impacto
-
-- **Back:**
-  - `producto.service.ts` (`remove`, `findBy`, `findByRapido`), `producto.persistence-adapters.ts`,
-    `producto.repository.ts` y `producto.repository-interface.ts`.
-  - `producto.controller.ts`, los dos DTOs de búsqueda, `get-producto.dto.ts` y
-    `producto.mapper.ts`.
-  - Tests: `producto.service.spec.ts`, `producto.persistence-adapters.spec.ts`,
-    `producto.http.spec.ts`, `producto.controller.spec.ts` y `producto.mapper.spec.ts`.
-- **Front:**
-  - `consultar-producto.tsx`, `header-producto.tsx`, `header-producto-lg.tsx`,
-    `producto-action.tsx`, `datos-card.tsx` e `interfaces-producto.tsx`.
-  - Nuevos `mostrar-eliminados-toggle.tsx` y `eliminado-badge.tsx`.
-  - `informacion-auditoria.tsx` y 4 archivos de test.
-- **Contrato:** `incluirEliminados` (opcional, `false` por defecto) en las dos búsquedas, y
-  `eliminado` en la respuesta del listado.
+- **Front:** `package.json`, `yarn.lock`, `vitest.config.ts`, `.gitignore` y
+  `docs/testing/PA-037-analisis-cobertura.md`.
+- **Back:** `docs/testing/PA-037-analisis-cobertura.md`.
+- Sin cambios en código de producción ni en tests.
 
 ### Verificación
+- Back: 55 suites y 336 tests en verde con coverage.
+- Front: 15 archivos y 54 tests en verde con `vitest run --coverage`.
+- **Sin verificar:**
+  - La instalación se hizo con `--ignore-engines`: `jsdom@30` pide Node ≥ 22.22 y el entorno
+  local tiene 22.14. Es una incompatibilidad que ya existía y que no introduce este cambio.
+  - Que `test:cov` funcione en CI (no hay CI configurado para el front).
+  - Los defectos listados como "no verificados" en §6 del informe.
 
-- **Back:** 252 tests de producto en verde.
-  - Mutación: con las dos líneas viejas del service repuestas, el test de regresión ("delega la
-    baja en el repositorio con el usuario, sin marcarla antes") falla.
-  - Los specs del adapter verifican que `deletedAt IS NULL` esté o no esté según
-    `incluirEliminados`. Antes, quitar esa condición no rompía ningún test.
-- **Front:** `vitest run` con 18 archivos y 62 tests en verde. `tsc` sin errores nuevos (125).
-- **En vivo:** ver la verificación de la rama de unificación.
-- **Sin verificar:** la UI en el navegador.
+---
 
-## [2026-09-24] Seed demo — Catálogo amplio e idempotente para `seed-all`
+## [2026-09-25] PA-037 — Ampliación de cobertura de comportamiento en gestion-productos
 
-- **Tarjeta / CR:** ninguna
-- **Herramienta:** OpenAI GPT-5.6-Luna vía OpenCode
+- **Tarjeta / CR:** PA-037
+- **Herramienta:** OpenAI GPT-5.6 vía OpenCode
 - **Autor/a que condujo la sesión:** —
 - **Link a la conversación:** no disponible (CLI)
 
 ### Prompt
-Síntesis: ampliar el seeder ejecutado por `GET /api/seed-all/execute` para cargar muchos más
-datos, cubrir líneas, superlíneas y catálogos relacionados, y garantizar al menos 50 productos.
-El equipo pidió poder probarlo antes de cualquier commit.
+Síntesis: continuar el trabajo de testing exigido por `docs/testing/PA-037-analisis-cobertura.md`,
+mejorando el backend, haciendo commits cada pocos casos y actualizando al final el informe.
 
 ### Respuesta / propuesta de la IA
-Se relevó el seed existente y se encontró que ya cargaba organización, 7 líneas, 3 marcas,
-8 envases y solo 7 productos. Se propuso ampliar los catálogos y generar un dataset determinista
-de 10 familias de productos con 5 presentaciones cada una.
+Se priorizaron las brechas de `gestion-productos` indicadas por el informe: reglas de Marca y Línea,
+adapter de persistencia de Producto y vista previa del cambio masivo de precios. Se propusieron tests
+unitarios de comportamiento con repositorios y QueryBuilder simulados, manteniendo el alcance de la
+rama de testing.
 
 ### Decisión tomada
-- Agregar 6 superlíneas, 22 líneas, 10 marcas y un envase adicional (`TABLETA`), conservando
-  la superlínea migratoria `Sin clasificar`.
-- Generar 50 productos con relaciones a línea, marca, proveedor y envase, presentación válida,
-  precio, costo, stock, stock mínimo y código de referencia.
-- Usar códigos determinísticos (`ACE-001` a `BOL-005`) como clave de idempotencia: al repetir
-  el endpoint no se duplican productos.
-- Mantener los seeds existentes de usuarios y organización; el alcance de esta ampliación se
-  concentra en catálogo y productos.
-- Hacer que un error del seed se propague y no termine en un falso mensaje de éxito.
+Se agregaron 23 casos reales en tres commits: bajas y unicidad de Marca/Línea; consultas, existencias,
+paginación y errores del adapter de Producto; y la vista previa de cambio masivo, incluyendo precios
+inválidos y alcance por Línea. Se actualizó el informe con la medición completa de 357 tests y 24,1 %
+de statements brutos.
 
 ### Qué se descartó y por qué
-- **Insertar datos con SQL o una migración:** el pedido es un seed ejecutable por endpoint y no
-  un cambio de esquema.
-- **Crear productos sin presentación:** la migración de presentación ya existe y el dataset demo
-  debe ejercitar el contrato actual (`envase + dimensión + magnitud`).
-- **Usar IDs fijos para las relaciones:** los IDs varían entre bases; se resuelven por
-  denominación y código para que el seed sea portable.
-- **Recrear o borrar datos existentes:** rompería la idempotencia y podría eliminar datos del
-  equipo al probar el endpoint.
+- **SQLite en memoria:** no se agregó en esta tanda porque habría cambiado la estrategia de testing y
+  requerido configurar entidades, DataSource y transacciones; primero se amplió la cobertura unitaria
+  priorizada por la tarjeta.
+- **Reemplazar los smoke tests restantes:** se dejó para futuras tandas para no mezclar una limpieza
+  amplia con casos de negocio nuevos.
+- **Arreglar el error de `@nestjs/swagger`/`PartialType`:** es un problema preexistente de carga de
+  la suite de controller, fuera del alcance de agregar tests; las suites modificadas sí se verificaron.
+- **Fijar un umbral de cobertura:** 24,1 % todavía no representa un umbral útil y haría fallar la
+  ejecución global antes de cerrar las brechas pendientes.
 
 ### Modificaciones sobre lo generado
-Se agregó `TABLETA` como envase porque uno de los productos demo lo necesita. La generación usa
-unidades base (`ml`, `g`, `unidades`) para cumplir el `CHECK` de presentación sin depender del
-servicio HTTP.
+Se ajustaron los mocks del QueryBuilder para soportar las operaciones realmente ejercitadas y se
+conservaron las aserciones sobre la lista completa de condiciones. No se modificó código de producción.
 
 ### Impacto
-- `seedFamiliaProducto/seed-familia-producto.service.ts`: superlíneas, líneas, marcas y envases.
-- `seed-producto/seed-producto.service.ts`: dataset de 50 productos y relaciones.
-- `seed-producto/seed-producto.module.ts`: repositorio de envases.
-- `seed-all/seed-all.service.ts`: propagación de errores.
-- Endpoint: `GET /api/seed-all/execute`.
-- Sin migraciones ni cambios de contrato HTTP.
+- `marca.service.spec.ts`: reglas de unicidad, sistema y baja.
+- `linea.service.spec.ts`: reglas de baja.
+- `producto.persistence-adapters.spec.ts`: consultas, existencias, persistencia y errores.
+- `producto.service.spec.ts`: preview de cambio masivo.
+- `docs/testing/PA-037-analisis-cobertura.md`: resultados y pendientes actualizados.
 
 ### Verificación
-`npm run build` y `git diff --check` pasan. La ejecución real contra MySQL y la comprobación de
-conteos mediante el endpoint quedan pendientes para que el equipo la pruebe; no se hizo commit.
+- Tandas aisladas: 26, 13 y 37 tests verdes, respectivamente.
+- Suite completa con coverage: 54 suites pasaron y 357 tests ejecutados; `producto.controller.spec.ts`
+  no inicia por `inheritValidationMetadata is not a function`, error preexistente documentado en el
+  informe. `git diff --check` sin errores.
+- Sin verificar: integración contra una base real/SQLite y la corrección de la incompatibilidad de
+  Swagger.
 
-## [2026-09-24] Unificación — `unificacion-testing-PA-053-PA-055`, rama única para llevar a `develop`
+## [2026-09-25] PA-037 — Alcance de 70 % para gestion-productos
 
-- **Tarjeta / CR:** PA-053 y PA-055, más lo acumulado en testing (PA-020, arreglo de tests y la integración de PA-029)
-- **Herramienta:** Claude Opus 5.5 vía Claude Code
-- **Autor/a que condujo la sesión:** Lisandro (PIPICBA)
+- **Tarjeta / CR:** PA-037
+- **Herramienta:** OpenAI GPT-5.6 vía OpenCode
+- **Autor/a que condujo la sesión:** —
 - **Link a la conversación:** no disponible (CLI)
 
 ### Prompt
+Síntesis: continuar la ampliación de tests del backend, medir nuevamente `gestion-productos` y
+seguir trabajando si todavía no supera el 70 %.
 
-Síntesis: en las ramas de testing commitear solo lo referido a testing y poner cada funcionalidad
-en su PA; crear una rama que unifique todo para después mergearla a `develop`, esperando permiso
-del equipo para ese merge.
+### Respuesta / propuesta de la IA
+Se midió el módulo de forma aislada con Jest y se priorizaron las brechas con mejor relación entre
+casos de comportamiento y statements cubribles: controller de Producto y adapters de Línea y Marca.
+Se mantuvo el enfoque unitario con QueryBuilders, repositorios y transacciones simulados.
 
 ### Decisión tomada
-
-- La rama `unificacion-testing-PA-053-PA-055` sale de `origin/develop` y mergea, con `--no-ff` y en
-  este orden, testing, PA-053 y PA-055.
-- Conflictos resueltos:
-  - `DECISIONES-IA.md`: quedan las entradas de las dos PA, en orden.
-  - En el front, `informacion-auditoria.tsx`: la última modificación se muestra si la hubo
-    (PA-053) y si el registro no está eliminado (PA-055).
-- **El merge a `develop` queda pendiente de permiso.** En el back, `develop` está protegida y el
-  merge tiene que entrar por PR.
+Se agregaron tests para delegación HTTP del controller, creación, actualización, búsquedas, bajas,
+auditoría, stock, precios e historial, además de consultas, paginación, auditoría, baja lógica y
+errores de los adapters de Línea y Marca. La medición aislada final de `gestion-productos` es
+**70,02 % de statements (1698/2425)**, con 27 suites y 358 tests verdes.
 
 ### Qué se descartó y por qué
+- **SQLite o integración contra una base real:** no era necesario para cruzar el umbral y habría
+  cambiado la estrategia, incorporando configuración de entidades, DataSource y transacciones.
+- **Tests de todos los repositorios restantes:** se priorizó alcanzar el objetivo con comportamiento
+  relevante; quedan pendientes adapters de Producto, SuperLínea y Envase en la medición de cobertura
+  del código que aún no ejecutan los specs.
+- **Fijar un `coverageThreshold` global:** el backend completo sigue por debajo del 70 % y el umbral
+  haría fallar la suite global antes de cerrar la deuda de los demás módulos.
 
-- **Squash de todo en un único commit:** se pierde la trazabilidad por PA que pide la consigna.
-- **Mergear las PA directamente a `develop`:** el equipo pidió una rama única y revisar antes.
+### Modificaciones sobre lo generado
+El spec del controller necesitó un mock de `PartialType` de `@nestjs/swagger` para evitar la
+incompatibilidad de versiones existente al cargar la suite. Los adapters requirieron mocks de
+QueryBuilder y QueryRunner para probar sus caminos sin conectar una base real.
+
+### Impacto
+- `src/modules/gestion-productos/producto/application/controllers/producto.controller.spec.ts`
+- `src/modules/gestion-productos/linea/infraestructure/repositories/linea.persistence-adapter.spec.ts`
+- `src/modules/gestion-productos/marca/infraestructure/repositories/marca.persistence-adapters.spec.ts`
+- `docs/testing/PA-037-analisis-cobertura.md`
+- No se modificó código de producción ni contratos HTTP.
 
 ### Verificación
-
-- Back: `tsc` sin errores; `jest` con 56 suites y 356 tests en verde.
-- Front: `vitest run` con 19 archivos y 65 tests en verde; `tsc` con 125 errores, ninguno nuevo.
-  Los únicos TS2304 son los 8 viejos registrados en la integración.
-- En vivo, back de esta rama levantado en el puerto 3001 contra la base local:
-  - historial del producto 1: `usuarioDenominacion` "Jenifer Lopez";
-  - `DELETE /producto/7?usuarioId=4`: 200, `deletedAt` cargado y `usuario_deleted_id = 4`;
-  - un segundo DELETE: 404;
-  - `search-by`: 6 resultados sin `incluirEliminados` y 7 con `incluirEliminados=true`, con
-    `MAR-001` marcado `eliminado`. Lo mismo en `search-by-rapido`;
-  - `GET /producto/7/audit`: `usuarioDeleted` "Jenifer Lopez".
-
-  Después de la prueba se restauró el producto 7 en la base local.
-- **Sin verificar:** la UI en el navegador.
-
-## [2026-09-24] Revisión de deudas técnicas y entorno local sin conexión a la base
-
-- **Tarjeta / CR:** ninguna propia; revisión de deuda técnica
-- **Herramienta:** Claude Opus 5.5 vía Claude Code
-- **Autor/a que condujo la sesión:** Lisandro (PIPICBA)
-- **Link a la conversación:** no disponible (CLI)
-
-### Prompt
-
-Síntesis: revisar si las deudas documentadas siguen activas comprobándolas en el código, no en
-este archivo; arreglar el back, que no conectaba a la base; correr los seeds; registrar nuevas
-deudas.
-
-### Decisión tomada
-
-- **Causa del `ECONNREFUSED`:** faltaba el `.env`, así que el back usaba `localhost:3306`, mientras
-  `docker-compose.yml` publica MySQL en el `3310`. Además, al mover el back a la raíz (`d1a0f5a2`)
-  cambió el nombre del proyecto de compose: se crea un volumen nuevo
-  (`proyecto1-back-..._mysql_data`) vacío y los datos anteriores quedan en `proyecto_mysql_data`,
-  que no se tocó. Los 2 contenedores (`mysql` y `phpmyadmin`) son los esperados.
-- Se creó un `.env` local (ignorado por git) con `DB_HOST=localhost`, `DB_PORT=3310`,
-  `DB_DATABASE=proyecto`, `JWT_SECRET` y `JWT_EXPIRES_IN`. Sin `JWT_SECRET` el login responde 500
-  (`secretOrPrivateKey must have a value`). `.env-temp` no sirve para correr fuera de docker: apunta
-  a `mysql:3306` y no trae las variables de JWT.
-- Se corrieron las 7 migraciones y `GET /api/seed-all/execute`: 7 usuarios, 50 productos,
-  4 proveedores, 22 líneas.
-
-### Estado de las deudas ya registradas (comprobado ejecutando el código)
-
-- **Resuelta:** `search-by-rapido` con `exacto` explícito. En vivo, `exacto=false` devuelve 10
-  resultados y `exacto=true` 0, sin 400.
-- **Activa pero sin impacto en la UI:** `incluirEliminados` en `PaginationWithDenominacionDto`,
-  `DenominacionEmpresaOperadorDto` y `SearchLocalidadDto`. Con `plainToInstance` y
-  `enableImplicitConversion`, `"false"` llega como `true`. El front nunca manda `false` (omite el
-  parámetro), por eso las pantallas funcionan. Rompe una llamada directa a la API.
-- **Activa sin uso:** `codReferenciaExacto` sigue sin llegar a `findBy`, pero ningún front lo envía.
-- **Activa:** el seed crea `admin@gmail.com` con `admin`. `LoginDto` exige `@Length(8, 20)` (el
-  mensaje dice "entre 6 y 20"), así que esa cuenta nunca puede entrar.
-- **Activa:** 40 tests `should be defined`; 34 specs no tienen otro test.
-- **Sin verificar:** fechas adelantadas 3 horas (`timezone: '-03:00'` sigue en `app.module.ts`).
-
-### Deuda técnica detectada y no resuelta
-
-- **Testing e2e.** `test/app.e2e-spec.ts` es el placeholder de Nest (`GET /` espera
-  `'Hello World!'`) y levanta `AppModule` contra la base real, sin base de test ni seeds. No hay
-  ningún flujo cubierto de punta a punta (login, alta y baja de producto, cambio de precio). Del
-  lado del front tampoco hay e2e: solo tests unitarios con vitest.
-- **Recuperar un producto borrado.** Desde PA-055 la baja es lógica (`deletedAt`,
-  `usuario_deleted_id`) y los eliminados se pueden consultar, pero no hay endpoint ni acción en la
-  UI para restaurarlos. Hoy solo se recupera editando la base a mano.
+- Suite aislada: 27 suites y 358 tests en verde.
+- Cobertura aislada: 70,02 % statements, 66,66 % branches, 46,39 % functions y 70,52 % lines.
+- Sin verificar: nueva ejecución de la suite completa global después de esta tanda y cobertura global
+  recalculada; la incompatibilidad de Swagger permanece documentada.

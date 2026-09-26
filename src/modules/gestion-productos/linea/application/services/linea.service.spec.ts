@@ -1,4 +1,4 @@
-import { NotFoundException } from '@nestjs/common';
+import { ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { validate } from 'class-validator';
 
@@ -299,6 +299,50 @@ describe('LineaService', () => {
       expect(
         mockRepository.findAgrupadasPorSuperlinea,
       ).toHaveBeenCalledWith(false, 5);
+    });
+  });
+
+  describe('remove', () => {
+    const linea = buildLinea({ sistema: 0 });
+
+    it('rechaza eliminar una Línea de sistema', async () => {
+      mockRepository.findOne.mockResolvedValue({ ...linea, sistema: 1 });
+
+      await expect(service.remove(1, 7)).rejects.toBeInstanceOf(
+        ForbiddenException,
+      );
+      expect(mockUsuarioService.findOne).not.toHaveBeenCalled();
+    });
+
+    it('rechaza eliminar si el usuario auditor no existe', async () => {
+      mockRepository.findOne.mockResolvedValue(linea);
+      mockUsuarioService.findOne.mockResolvedValue(null);
+
+      await expect(service.remove(1, 7)).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
+      expect(mockPoliticaEliminacionLinea.tieneProductosActivosParaLinea).not.toHaveBeenCalled();
+    });
+
+    it('rechaza eliminar una Línea asociada a productos activos', async () => {
+      mockRepository.findOne.mockResolvedValue(linea);
+      mockUsuarioService.findOne.mockResolvedValue({ id: 7 });
+      mockPoliticaEliminacionLinea.tieneProductosActivosParaLinea.mockResolvedValue(true);
+
+      await expect(service.remove(1, 7)).rejects.toBeInstanceOf(
+        ConflictException,
+      );
+      expect(mockRepository.remove).not.toHaveBeenCalled();
+    });
+
+    it('elimina una Línea sin productos activos y registra el usuario', async () => {
+      const usuario = { id: 7 };
+      mockRepository.findOne.mockResolvedValue(linea);
+      mockUsuarioService.findOne.mockResolvedValue(usuario);
+      mockPoliticaEliminacionLinea.tieneProductosActivosParaLinea.mockResolvedValue(false);
+
+      await expect(service.remove(1, 7)).resolves.toBeDefined();
+      expect(mockRepository.remove).toHaveBeenCalledWith(linea, usuario);
     });
   });
 });
